@@ -1,12 +1,20 @@
 fastapi
 uvicorn[standard]
+
 SQLAlchemy>=2
+
 pydantic>=2
 pydantic-settings>=2
+
+# Auth & Security
 passlib[bcrypt]
+bcrypt==4.0.1
 python-jose[cryptography]
 python-multipart
-# Choose one of these depending on DB:
+
+# Database Drivers
 psycopg2-binary      # PostgreSQL
 # mysqlclient        # MySQL/MariaDB
-# If you just want to try quickly without installing a server, use SQLite (no extra driver)
+# SQLite requires no extra driver
+
+# CORS (optional if required explicitly)
