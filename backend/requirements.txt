@@ -18,3 +18,5 @@ psycopg2-binary      # PostgreSQL
 # SQLite requires no extra driver
 email-validator
 # CORS (optional if required explicitly)
+
+pandas
