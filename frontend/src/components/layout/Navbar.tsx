@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from '@/context/AuthContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -10,12 +11,10 @@ const Navbar = () => {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user, logoutUser } = useAuth();
+  const userRole = user?.role;
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
-
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
@@ -49,9 +48,8 @@ const Navbar = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    setUserRole(null);
+  const handleLogout = async () => {
+    await logoutUser();
     toast({
       title: "Logged out successfully",
       description: "You have been logged out of your account.",
@@ -60,17 +58,16 @@ const Navbar = () => {
   };
 
   return (
-    <header 
-      className={`fixed w-full top-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-black/90 backdrop-blur-md py-3' : 'bg-transparent py-5'
-      }`}
+    <header
+      className={`fixed w-full top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur-md py-3' : 'bg-transparent py-5'
+        }`}
     >
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center">
-          <img 
+          <img
             src="/images/Logo.png"
-            alt="BaseLine Academy" 
+            alt="BaseLine Academy"
             className="h-12 md:h-16"
           />
         </Link>
@@ -78,12 +75,10 @@ const Navbar = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
-            <Link 
+            <Link
               key={link.name}
               to={link.path}
-              className={`text-white hover:text-baseline-yellow font-medium transition-colors duration-300 ${
-                location.pathname === link.path ? 'text-baseline-yellow' : ''
-              }`}
+              className={`${location.pathname === link.path ? 'text-baseline-yellow' : 'text-white'} hover:text-baseline-yellow font-medium transition-colors duration-300`}
             >
               {link.name}
             </Link>
@@ -110,7 +105,7 @@ const Navbar = () => {
         </nav>
 
         {/* Mobile Menu Button */}
-        <button 
+        <button
           onClick={() => setIsOpen(!isOpen)}
           className="md:hidden text-white hover:text-baseline-yellow"
         >
@@ -120,26 +115,25 @@ const Navbar = () => {
 
       {/* Mobile Navigation */}
       {isOpen && (
-        <div className="fixed inset-0 top-[72px] bg-black z-40 flex flex-col md:hidden animate-fade-in">
+        <div className="fixed inset-0 top-[72px] bg-black/95 backdrop-blur-sm z-50 flex flex-col md:hidden animate-fade-in h-[calc(100vh-72px)] overflow-y-auto">
           <div className="container mx-auto py-8 px-4 flex flex-col space-y-6">
             {navLinks.map((link, index) => (
               <Link
                 key={link.name}
                 to={link.path}
                 onClick={() => setIsOpen(false)}
-                className={`text-white hover:text-baseline-yellow text-2xl font-semibold transition-all duration-300 ${
-                  isOpen ? 'animate-slide-in' : ''
-                } ${location.pathname === link.path ? 'text-baseline-yellow' : ''}`}
+                className={`${location.pathname === link.path ? 'text-baseline-yellow' : 'text-white'} hover:text-baseline-yellow text-2xl font-semibold transition-all duration-300 ${isOpen ? 'animate-slide-in' : ''
+                  }`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {link.name}
               </Link>
             ))}
-            <div className="flex flex-col space-y-4 mt-8">
+            <div className="flex flex-col space-y-4 mt-8 pb-10">
               {userRole ? (
                 <>
-                  <Button 
-                    className="button-outline w-full" 
+                  <Button
+                    className="button-outline w-full"
                     onClick={() => {
                       setIsOpen(false);
                       handleDashboardClick();
@@ -147,8 +141,8 @@ const Navbar = () => {
                   >
                     Dashboard
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       setIsOpen(false);
                       handleLogout();
@@ -163,7 +157,7 @@ const Navbar = () => {
                   <Button className="button-outline w-full">Login</Button>
                 </Link>
               )}
-              <Button 
+              <Button
                 className="button-primary w-full"
                 onClick={() => {
                   setIsOpen(false);

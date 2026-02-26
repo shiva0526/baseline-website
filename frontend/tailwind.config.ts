@@ -54,7 +54,7 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				baseline: {
-					yellow: '#F7D046',
+					yellow: '#DDBC44',
 					black: '#000000',
 					white: '#FFFFFF',
 				}
@@ -94,13 +94,13 @@ export default {
 					"50%": { transform: "translateY(-5px)" }
 				},
 				"glow": {
-					"0%, 100%": { 
+					"0%, 100%": {
 						"box-shadow": "0 0 15px 5px rgba(247, 208, 70, 0.3)",
-						"border-color": "rgba(247, 208, 70, 0.5)" 
+						"border-color": "rgba(247, 208, 70, 0.5)"
 					},
-					"50%": { 
+					"50%": {
 						"box-shadow": "0 0 25px 10px rgba(247, 208, 70, 0.5)",
-						"border-color": "rgba(247, 208, 70, 0.8)" 
+						"border-color": "rgba(247, 208, 70, 0.8)"
 					}
 				}
 			},

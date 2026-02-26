@@ -1,6 +1,6 @@
 from datetime import date as dated, datetime
-from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, EmailStr
 
 # ---------- Auth ----------
 class Token(BaseModel):
@@ -8,9 +8,8 @@ class Token(BaseModel):
     token_type: str = "bearer"
     role: str
 
-# Payload structure stored inside JWTs
 class TokenPayload(BaseModel):
-    sub: str                 # usually the user's email or username
+    sub: str
     user_id: Optional[int] = None
     role: Optional[str] = None
     exp: Optional[int] = None
@@ -21,22 +20,19 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-
 # ---------- Users ----------
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     role: str
     created_at: datetime
-
-    # Pydantic v2: read attributes from ORM objects
     model_config = {"from_attributes": True}
-
 
 # ---------- Players ----------
 class PlayerBase(BaseModel):
     name: str
     program: Optional[str] = None
+    phone: Optional[str] = None
 
 class PlayerCreate(PlayerBase):
     pass
@@ -44,67 +40,72 @@ class PlayerCreate(PlayerBase):
 class PlayerUpdate(BaseModel):
     name: Optional[str] = None
     program: Optional[str] = None
+    phone: Optional[str] = None
     age: Optional[int] = None
+
+# --- NEW: Schema for saving performance ratings ---
+class PlayerPerformanceUpdate(BaseModel):
+    ratings: Dict[str, int]  # e.g. {"Dribbling": 5, "Passing": 4}
 
 class PlayerOut(PlayerBase):
     id: int
     name: str
     program: Optional[str] = None
-    # if your DB stores `attended_classes` (snake_case), either
-    #  - add a property `attendedClasses` on the SQLAlchemy model, OR
-    #  - use alias (see commented example below).
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    
+    # Calculated fields
     attendedClasses: int
+    weeklyAttendance: int
+    
+    # --- NEW: Performance Ratings field ---
+    performance_ratings: Optional[Dict[str, int]] = None
 
     model_config = {"from_attributes": True}
-
 
 # ---------- Attendance ----------
 class AttendanceMark(BaseModel):
     player_id: int
     date: dated
-    status: bool    # boolean (True/False) — keep this as bool
+    status: bool
 
 class AttendanceOut(BaseModel):
     id: int
     name: str
     program: Optional[str] = None
     attendedClasses: int
-
     model_config = {"from_attributes": True}
-
 
 # ---------- Tournaments ----------
 class TournamentBase(BaseModel):
     title: str
-    date: dated
+    date: str 
     location: Optional[str] = None
     description: Optional[str] = None
     match_type: str = "3v3"
     age_groups: Optional[List[str]] = None
-    registration_open: Optional[dated] = None
-    registration_close: Optional[dated] = None
+    registration_open: Optional[str] = None
+    registration_close: Optional[str] = None
 
 class TournamentCreate(TournamentBase):
     pass
 
 class TournamentUpdate(BaseModel):
     title: Optional[str] = None
-    date: Optional[dated] = None
+    date: Optional[str] = None
     location: Optional[str] = None
     description: Optional[str] = None
     match_type: Optional[str] = None
     age_groups: Optional[List[str]] = None
-    registration_open: Optional[dated] = None
-    registration_close: Optional[dated] = None
+    registration_open: Optional[str] = None
+    registration_close: Optional[str] = None
     required_fields: Optional[List[str]] = None
 
 class TournamentOut(TournamentBase):
     id: int
     status: str
     created_at: datetime
-
     model_config = {"from_attributes": True}
-
 
 # ---------- Registrations ----------
 class RegistrationCreate(BaseModel):
@@ -123,20 +124,7 @@ class RegistrationOut(BaseModel):
     email: str
     player_names: List[str]
     created_at: datetime
-
     model_config = {"from_attributes": True}
-
-
-# ---------- Refresh token (optional) ----------
-class RefreshTokenOut(BaseModel):
-    id: int
-    jti: str
-    user_id: int
-    expires_at: datetime
-    revoked: bool
-
-    model_config = {"from_attributes": True}
-
 
 # ---------- Announcements ----------
 class AnnouncementCreate(BaseModel):
@@ -148,5 +136,27 @@ class AnnouncementOut(BaseModel):
     message: str
     expires_at: Optional[datetime]
     created_at: datetime
+    model_config = {"from_attributes": True}
 
+# ---------- Other ----------
+class RefreshTokenOut(BaseModel):
+    id: int
+    jti: str
+    user_id: int
+    expires_at: datetime
+    revoked: bool
+    model_config = {"from_attributes": True}
+
+class ReportCreate(BaseModel):
+    student_id: int
+    start_date: dated
+    end_date: dated
+    feedback: dict 
+
+class ReportOut(BaseModel):
+    id: int
+    student_id: int
+    coach_id: int
+    attendance_percentage: int
+    created_at: datetime
     model_config = {"from_attributes": True}

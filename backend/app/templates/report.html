@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Player Report</title>
+    <style>
+        body { font-family: 'Helvetica', sans-serif; color: #333; padding: 40px; max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; border-bottom: 2px solid #4F46E5; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { margin: 0; color: #4F46E5; font-size: 28px; }
+        .header p { color: #666; margin-top: 5px; }
+        
+        .meta-table { width: 100%; margin-bottom: 30px; border-collapse: collapse; }
+        .meta-table td { padding: 10px; font-size: 16px; }
+        .meta-label { font-weight: bold; color: #555; width: 150px; }
+
+        /* UPDATED: Switched from Flexbox to Table display.
+           wkhtmltopdf handles tables much better than flexbox.
+        */
+        .stats-grid { 
+            width: 100%; 
+            display: table; 
+            border-spacing: 20px 0; 
+            margin-bottom: 40px; 
+        }
+        .stat-box { 
+            display: table-cell;
+            background: #F3F4F6; 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: center; 
+            width: 33%; 
+            vertical-align: middle;
+        }
+
+        .stat-value { font-size: 32px; font-weight: bold; color: #111; display: block; margin-bottom: 5px; }
+        .stat-label { font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+
+        .section { margin-bottom: 30px; }
+        .section h3 { 
+            background-color: #eee; 
+            padding: 10px; 
+            border-left: 4px solid #4F46E5; 
+            margin-bottom: 15px; 
+        }
+        .content-text { line-height: 1.6; white-space: pre-wrap; }
+        
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Player Progress Report</h1>
+        <p>{{ date_range }}</p>
+    </div>
+
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">Player Name:</td>
+            <td>{{ player_name }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Coach:</td>
+            <td>{{ coach_name }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Program:</td>
+            <td>{{ program }}</td>
+        </tr>
+    </table>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <span class="stat-value">{{ total_classes }}</span>
+            <span class="stat-label">Classes Scheduled</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ attended_classes }}</span>
+            <span class="stat-label">Classes Attended</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value" style="color: {{ 'green' if attendance_percentage >= 75 else 'orange' }}">{{ attendance_percentage }}%</span>
+            <span class="stat-label">Attendance Rate</span>
+        </div>
+    </div>
+
+    {% if chart_image %}
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h3>Attendance Breakdown</h3>
+        <img src="data:image/png;base64,{{ chart_image }}" alt="Attendance Chart" style="max-width: 400px; border-radius: 8px;" />
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h3>Coach's Summary</h3>
+        <div class="content-text">{{ feedback.summary }}</div>
+    </div>
+
+    <div class="section">
+        <h3>Areas for Improvement</h3>
+        <div class="content-text">{{ feedback.improvements }}</div>
+    </div>
+    
+    <div class="footer">
+        Generated on {{ generated_at }} | Baseline Basketball
+    </div>
+</body>
+</html>

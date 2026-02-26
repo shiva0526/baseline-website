@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, UserCog, User, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,22 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { loginUser, isAuthenticated, user, isLoading: authLoading } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      if (user.role === 'coach') {
+        navigate('/coach-dashboard', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, authLoading, navigate]);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>;
+  }
 
   const handleRoleSelect = (role: Role) => {
     setSelectedRole(role);
@@ -35,20 +51,20 @@ const Login = () => {
     setError('');
   };
 
-  const { loginUser } = useAuth();
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
       if (!selectedRole) {
         throw new Error('Please select a role');
       }
 
       await loginUser(email, password);
-      
+
       toast({
         title: "Login successful!",
         description: "Welcome back, Coach!",
@@ -74,16 +90,16 @@ const Login = () => {
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(247,208,70,0.1)_0%,transparent_50%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_75%,rgba(247,208,70,0.05)_0%,transparent_50%)] pointer-events-none" />
-      
+
       <Navbar />
-      
+
       <div className="flex-1 flex items-center justify-center py-16 px-4 relative z-10">
         <div className="w-full max-w-md animate-fade-in">
           {/* Main Card with Glassmorphism */}
           <div className="relative backdrop-blur-xl bg-white/10 rounded-2xl shadow-2xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-500">
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-baseline-yellow/20 via-transparent to-gray-900/30 pointer-events-none" />
-            
+
             {/* Header */}
             <div className="relative bg-gradient-to-r from-baseline-yellow/20 to-orange-500/20 p-8 border-b border-white/10">
               <div className="text-center">
@@ -93,7 +109,7 @@ const Login = () => {
                 <p className="text-gray-300 text-sm">Elite Basketball Training Platform</p>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="relative p-8">
               {stage === 'select-role' ? (
@@ -102,7 +118,7 @@ const Login = () => {
                     <h3 className="text-xl font-semibold text-white mb-2">Choose Your Role</h3>
                     <p className="text-gray-400 text-sm">Select how you'd like to access the platform</p>
                   </div>
-                  
+
                   <div className="flex justify-center">
                     <button
                       onClick={() => handleRoleSelect('coach')}
@@ -121,21 +137,21 @@ const Login = () => {
                     onClick={handleBackToRoles}
                     className="flex items-center text-gray-400 hover:text-baseline-yellow transition-colors duration-300 group"
                   >
-                    <ChevronLeft size={16} className="mr-1 group-hover:-translate-x-1 transition-transform duration-300" /> 
+                    <ChevronLeft size={16} className="mr-1 group-hover:-translate-x-1 transition-transform duration-300" />
                     Back to role selection
                   </button>
-                  
+
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-white mb-2">🏀 Coach Login</h3>
                     <p className="text-gray-400 text-sm">Access your coaching dashboard and team management tools</p>
                   </div>
-                  
+
                   {error && (
                     <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-200 px-4 py-3 rounded-lg animate-fade-in">
                       <p className="text-sm font-medium">{error}</p>
                     </div>
                   )}
-                  
+
                   <form onSubmit={handleLogin} className="space-y-6">
                     <div className="space-y-4">
                       <div>
@@ -149,7 +165,7 @@ const Login = () => {
                           required
                         />
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
                         <div className="relative">
@@ -171,7 +187,7 @@ const Login = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-baseline-yellow to-yellow-400 hover:from-yellow-400 hover:to-baseline-yellow text-black font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-baseline-yellow/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
@@ -186,7 +202,7 @@ const Login = () => {
                         'Sign In to Coach Portal'
                       )}
                     </Button>
-                    
+
                     <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 backdrop-blur-sm rounded-lg p-4 border border-white/10">
                       <div className="text-center text-sm text-gray-400">
                         <p className="font-medium text-baseline-yellow mb-1">Demo Credentials:</p>
@@ -200,7 +216,7 @@ const Login = () => {
           </div>
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );

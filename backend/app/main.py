@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import Base, engine
+# REMOVE "reports" from this list
 from .routers import auth, players, attendance, tournaments, registrations, announcements
 
 from .auth_utils import hash_password
@@ -27,11 +28,8 @@ app.include_router(attendance.router)
 app.include_router(tournaments.router)
 app.include_router(registrations.router)
 app.include_router(announcements.router)
-
+# REMOVE the line: app.include_router(reports.router)
 
 @app.get("/")
 def root():
     return {"ok": True, "app": settings.APP_NAME}
-
-
-

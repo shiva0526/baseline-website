@@ -1,6 +1,6 @@
 import axiosClient from "./axiosClient";
 
-export type AttendanceMap = Record<number, boolean>; 
+export type AttendanceMap = Record<number, boolean>;
 // e.g. { 1: true, 2: false }
 
 export const getAttendance = async (date: string): Promise<AttendanceMap> => {

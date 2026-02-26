@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
@@ -50,25 +49,23 @@
   .section-padding {
     @apply py-16 md:py-20 lg:py-24 px-4 sm:px-6 lg:px-8;
   }
-  
+
   .gradient-text {
     @apply bg-gradient-to-r from-baseline-yellow to-yellow-400 bg-clip-text text-transparent;
   }
-  
+
   .hover-scale {
     @apply transition-transform duration-300 hover:scale-105;
   }
-  
+
   .button-primary {
-    @apply bg-baseline-yellow text-baseline-black font-semibold px-6 py-3 rounded-md 
-           transition-all duration-300 hover:bg-opacity-80 hover:shadow-lg inline-block;
+    @apply bg-baseline-yellow text-baseline-black font-semibold px-6 py-3 rounded-md transition-all duration-300 hover:bg-opacity-80 hover:shadow-lg inline-block;
   }
-  
+
   .button-outline {
-    @apply border-2 border-baseline-yellow text-baseline-yellow font-semibold px-6 py-3 rounded-md 
-           transition-all duration-300 hover:bg-baseline-yellow hover:text-baseline-black hover:shadow-lg inline-block;
+    @apply border-2 border-baseline-yellow text-baseline-yellow font-semibold px-6 py-3 rounded-md transition-all duration-300 hover:bg-baseline-yellow hover:text-baseline-black hover:shadow-lg inline-block;
   }
-  
+
   .card-hover {
     @apply transition-all duration-300 hover:shadow-xl hover:shadow-baseline-yellow/10 hover:-translate-y-1;
   }
@@ -93,6 +90,11 @@
 }
 
 @keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }

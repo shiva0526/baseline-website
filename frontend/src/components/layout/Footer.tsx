@@ -51,10 +51,10 @@ const Footer = () => {
           {/* Logo & About */}
           <motion.div variants={itemVariants} className="space-y-6">
             <Link to="/" className="inline-block">
-              <img 
-                src="/images/Logo.png" 
-                alt="BaseLine Academy" 
-                className="h-16 mb-4" 
+              <img
+                src="/images/Logo.png"
+                alt="BaseLine Academy"
+                className="h-16 mb-4"
               />
             </Link>
             <p className="text-gray-300 leading-relaxed">
@@ -81,30 +81,36 @@ const Footer = () => {
               </motion.button>
             </div>
           </motion.div>
-          
+
           {/* Quick Links */}
           <motion.div variants={itemVariants} className="space-y-6">
             <h4 className="font-display font-bold text-xl text-baseline-yellow">
               Quick Links
             </h4>
             <nav className="flex flex-col space-y-3">
-              {['Home', 'About Us', 'Programs', 'Gallery', 'Contact'].map((link) => (
+              {[
+                { name: 'Home', path: '/' },
+                { name: 'About Us', path: '/about' },
+                { name: 'Programs', path: '/programs' },
+                { name: 'Gallery', path: '/gallery' },
+                { name: 'Contact', path: '/contact' }
+              ].map((link) => (
                 <motion.div
-                  key={link}
+                  key={link.name}
                   whileHover={{ x: 5 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Link 
-                    to={`/${link.toLowerCase().replace(' ', '-')}`} 
+                  <Link
+                    to={link.path}
                     className="hover:text-baseline-yellow transition-colors duration-200 text-gray-300"
                   >
-                    {link}
+                    {link.name}
                   </Link>
                 </motion.div>
               ))}
             </nav>
           </motion.div>
-          
+
           {/* Programs */}
           <motion.div variants={itemVariants} className="space-y-6">
             <h4 className="font-display font-bold text-xl text-baseline-yellow">
@@ -117,8 +123,8 @@ const Footer = () => {
                   whileHover={{ x: 5 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Link 
-                    to="/programs" 
+                  <Link
+                    to="/programs"
                     className="hover:text-baseline-yellow transition-colors duration-200 text-gray-300"
                   >
                     {program}
@@ -127,7 +133,7 @@ const Footer = () => {
               ))}
             </nav>
           </motion.div>
-          
+
           {/* Contact Info */}
           <motion.div variants={itemVariants} className="space-y-6">
             <h4 className="font-display font-bold text-xl text-baseline-yellow">
@@ -171,7 +177,7 @@ const Footer = () => {
             </div>
           </motion.div>
         </motion.div>
-        
+
         {/* Bottom / Copyright */}
         <motion.div
           initial={{ opacity: 0 }}

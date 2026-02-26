@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { ArrowLeft, User } from 'lucide-react';
+import { ArrowLeft, User, Phone, CheckCircle, Calendar, Star, Save, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from "@/components/ui/use-toast";
+import axiosClient from "@/api/axiosClient";
+import { jsPDF } from 'jspdf';
 
+// Updated Interface to match Backend
 interface Player {
   id: number;
   name: string;
-  program: string;
+  program: string; // or '3-Day' | '5-Day'
   attendedClasses: number;
-  phone: string;
-  avatar: string | null;
+  weeklyAttendance: number;
+  phone?: string;           // Optional
+  avatar?: string | null;   // Optional
+  performance_ratings?: Record<string, number>; // New Field for stats
 }
 
 interface PlayerProfileProps {
@@ -24,15 +30,33 @@ interface PlayerStats {
   losses: number;
 }
 
+const METRICS = [
+  "Dribbling",
+  "Passing",
+  "Shooting",
+  "Defence",
+  "Communication Skills",
+  "Learning Mindset",
+  "Energy on Court"
+];
+
 const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
-  // Load player stats from localStorage
+  const { toast } = useToast();
+
+  // Initialize ratings from player prop or default to empty
+  const [ratings, setRatings] = useState<Record<string, number>>(() => {
+    return player.performance_ratings || {};
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load player stats from localStorage (Keep existing logic)
   const getPlayerStats = (): PlayerStats => {
     const stored = localStorage.getItem(`player_stats_${player.id}`);
     return stored ? JSON.parse(stored) : { totalMatches: 0, wins: 0, losses: 0 };
   };
 
   const [playerStats] = useState<PlayerStats>(getPlayerStats());
-  
+
   // Generate initials for avatar
   const getInitials = (name: string) => {
     return name
@@ -43,46 +67,229 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
       .slice(0, 2);
   };
 
-  // Extract age and gender (mock data for now)
   const playerAge = "25"; // Mock data
   const playerGender = "Male"; // Mock data
 
+  // --- Handlers for Ratings ---
+
+  const handleStarClick = (metric: string, value: number) => {
+    setRatings(prev => ({
+      ...prev,
+      [metric]: value
+    }));
+  };
+
+  const handleSaveRatings = async () => {
+    setIsSaving(true);
+    try {
+      // Calls the new PUT endpoint we created
+      await axiosClient.put(`/players/${player.id}/performance`, { ratings });
+      toast({
+        title: "Success",
+        description: "Performance ratings saved successfully!",
+      });
+    } catch (error) {
+      console.error("Failed to save ratings", error);
+      toast({
+        title: "Error",
+        description: "Failed to save ratings.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Helper to draw a 5-point star shape in the PDF
+  const drawStar = (doc: jsPDF, cx: number, cy: number, size: number, filled: boolean) => {
+    const outerR = size / 2;
+    const innerR = outerR * 0.4;
+    const points: [number, number][] = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const angle = (Math.PI / 2) + (i * Math.PI / 5);
+      points.push([cx + r * Math.cos(angle), cy - r * Math.sin(angle)]);
+    }
+    if (filled) {
+      doc.setFillColor(234, 179, 8);
+    } else {
+      doc.setFillColor(80, 80, 80);
+    }
+    doc.setDrawColor(filled ? 234 : 100, filled ? 179 : 100, filled ? 8 : 100);
+    // Draw polygon
+    const [first, ...rest] = points;
+    doc.moveTo(first[0], first[1]);
+    rest.forEach(([x, y]) => doc.lineTo(x, y));
+    doc.lineTo(first[0], first[1]);
+    doc.fill();
+  };
+
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // --- Header / Title ---
+    doc.setFillColor(30, 30, 30);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    doc.setFillColor(234, 179, 8);
+    doc.rect(0, 45, pageWidth, 2, 'F');
+
+    doc.setTextColor(234, 179, 8);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Player Report', pageWidth / 2, y, { align: 'center' });
+    y += 12;
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text(player.name, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(200, 200, 200);
+    const infoLine = `Program: ${player.program}${player.phone ? '  |  Phone: ' + player.phone : ''}  |  Generated: ${new Date().toLocaleDateString()}`;
+    doc.text(infoLine, pageWidth / 2, y, { align: 'center' });
+
+    y = 58;
+
+    // === ATTENDANCE SECTION (TOP) ===
+    doc.setFillColor(40, 40, 40);
+    doc.roundedRect(14, y, pageWidth - 28, 42, 3, 3, 'F');
+
+    doc.setTextColor(234, 179, 8);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Attendance', 20, y + 10);
+
+    // Monthly
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(player.attendedClasses), 40, y + 28);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text('Monthly Classes', 26, y + 35);
+
+    // Weekly
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(player.weeklyAttendance), pageWidth / 2 + 20, y + 28);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text('Weekly Classes', pageWidth / 2 + 8, y + 35);
+
+    y += 52;
+
+    // === SKILL ASSESSMENT SECTION (MIDDLE) ===
+    doc.setFillColor(40, 40, 40);
+    const rowHeight = 14;
+    const skillSectionHeight = 18 + METRICS.length * rowHeight;
+    doc.roundedRect(14, y, pageWidth - 28, skillSectionHeight, 3, 3, 'F');
+
+    doc.setTextColor(234, 179, 8);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Skill Assessment', 20, y + 10);
+
+    y += 20;
+
+    METRICS.forEach((metric) => {
+      const rating = ratings[metric] || 0;
+
+      // Metric name
+      doc.setTextColor(220, 220, 220);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(metric, 22, y);
+
+      // Rating text (e.g., "4 / 5")
+      doc.setTextColor(234, 179, 8);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${rating} / 5`, pageWidth - 22, y, { align: 'right' });
+
+      // Draw 5 star shapes
+      const starSize = 6;
+      const starSpacing = 8;
+      const starsStartX = pageWidth - 70;
+      for (let i = 0; i < 5; i++) {
+        drawStar(doc, starsStartX + i * starSpacing, y - 2.5, starSize, i < rating);
+      }
+
+      y += rowHeight;
+    });
+
+    y += 10;
+
+    // === PAYMENT LINK SECTION (BOTTOM) ===
+    doc.setFillColor(40, 40, 40);
+    doc.roundedRect(14, y, pageWidth - 28, 30, 3, 3, 'F');
+
+    doc.setTextColor(234, 179, 8);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payment', 20, y + 10);
+
+    doc.setTextColor(100, 160, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const paymentUrl = 'https://baseline-academy.com/pay';
+    doc.textWithLink('Click here to make payment: ' + paymentUrl, 20, y + 22, { url: paymentUrl });
+
+    // Save
+    const safeName = player.name.replace(/[^a-zA-Z0-9]/g, '_');
+    doc.save(`${safeName}_report.pdf`);
+    toast({ title: 'Report Downloaded', description: `PDF report for ${player.name} has been saved.` });
+  };
+
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black text-white">
       {/* Header with back button */}
       <div className="border-b border-white/10 bg-black">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="flex items-center gap-1 sm:gap-2 text-white hover:text-baseline-yellow hover:bg-white/10 px-2 sm:px-3"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
+              </Button>
+              <h1 className="text-lg sm:text-2xl font-bold text-white">Player Profile</h1>
+            </div>
             <Button
-              variant="ghost"
+              onClick={handleDownloadPDF}
               size="sm"
-              onClick={onBack}
-              className="flex items-center gap-2 text-white hover:text-baseline-yellow hover:bg-white/10"
+              className="bg-baseline-yellow text-black hover:bg-yellow-400 font-semibold flex items-center gap-1 sm:gap-2 px-2 sm:px-4"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Download Report</span>
             </Button>
-            <h1 className="text-2xl font-bold text-white">Player Profile</h1>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-4xl">
         {/* Player Info Section */}
-        <Card className="mb-6 bg-gradient-to-r from-baseline-yellow/20 to-white/10 border-baseline-yellow/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+        <Card className="mb-4 sm:mb-6 bg-primary/90 border-primary">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-4 sm:gap-6">
               {/* Avatar */}
               <div className="flex-shrink-0">
                 {player.avatar ? (
                   <img
                     src={player.avatar}
                     alt={player.name}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-baseline-yellow"
+                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-black/30"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-baseline-yellow/20 flex items-center justify-center border-2 border-baseline-yellow">
-                    <span className="text-xl font-semibold text-baseline-yellow">
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/30 flex items-center justify-center border-2 border-black/30">
+                    <span className="text-base sm:text-xl font-semibold text-black">
                       {getInitials(player.name)}
                     </span>
                   </div>
@@ -90,15 +297,24 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
               </div>
 
               {/* Player Details */}
-              <div className="flex-1 space-y-2">
-                <h2 className="text-3xl font-bold text-white">{player.name}</h2>
-                <div className="flex flex-wrap gap-4 text-gray-300">
+              <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
+                <h2 className="text-xl sm:text-3xl font-bold text-black truncate">{player.name}</h2>
+                <div className="flex flex-wrap gap-2 sm:gap-4 text-black/70 text-xs sm:text-sm">
                   <span className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
+                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
                     {playerAge} Years | {playerGender}
                   </span>
-                  <span>Phone: {player.phone}</span>
-                  <span>Program: {player.program}</span>
+
+                  {player.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
+                      {player.phone}
+                    </span>
+                  )}
+
+                  <span className="px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
+                    {player.program}
+                  </span>
                 </div>
               </div>
             </div>
@@ -106,62 +322,60 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
         </Card>
 
         {/* Tabs Section */}
-        <Tabs defaultValue="stats" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white/10 border-baseline-yellow/30">
-            <TabsTrigger value="stats" className="relative text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
+        <Tabs defaultValue="performance" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6 bg-white/10 border-baseline-yellow/30">
+            <TabsTrigger value="stats" className="relative text-xs sm:text-sm text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
               Stats
             </TabsTrigger>
-            <TabsTrigger value="performance" className="relative text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
+            <TabsTrigger value="performance" className="relative text-xs sm:text-sm text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
               Performance
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="relative text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
+            <TabsTrigger value="attendance" className="relative text-xs sm:text-sm text-white data-[state=active]:bg-baseline-yellow data-[state=active]:text-black">
               Attendance
             </TabsTrigger>
           </TabsList>
 
           {/* Stats Tab */}
-          <TabsContent value="stats" className="space-y-6">
-            {/* Overall Stats */}
+          <TabsContent value="stats" className="space-y-4 sm:space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-white mb-4">Overall Stats</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Overall Stats</h3>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <Card className="bg-white/10 border-white/20">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-3xl font-bold text-baseline-yellow mb-2">
+                  <CardContent className="p-3 sm:p-6 text-center">
+                    <div className="text-xl sm:text-3xl font-bold text-baseline-yellow mb-1 sm:mb-2">
                       {playerStats.totalMatches}
                     </div>
-                    <div className="text-sm text-gray-300">Total Matches</div>
+                    <div className="text-xs sm:text-sm text-gray-300">Total Matches</div>
                   </CardContent>
                 </Card>
-                
+
                 <Card className="bg-white/10 border-white/20">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-3xl font-bold text-green-400 mb-2">
+                  <CardContent className="p-3 sm:p-6 text-center">
+                    <div className="text-xl sm:text-3xl font-bold text-green-400 mb-1 sm:mb-2">
                       {playerStats.wins}
                     </div>
-                    <div className="text-sm text-gray-300">Wins</div>
+                    <div className="text-xs sm:text-sm text-gray-300">Wins</div>
                   </CardContent>
                 </Card>
-                
+
                 <Card className="bg-white/10 border-white/20">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-3xl font-bold text-red-400 mb-2">
+                  <CardContent className="p-3 sm:p-6 text-center">
+                    <div className="text-xl sm:text-3xl font-bold text-red-400 mb-1 sm:mb-2">
                       {playerStats.losses}
                     </div>
-                    <div className="text-sm text-gray-300">Losses</div>
+                    <div className="text-xs sm:text-sm text-gray-300">Losses</div>
                   </CardContent>
                 </Card>
               </div>
             </div>
 
-            {/* Shots Details Section */}
             <div>
-              <h3 className="text-xl font-semibold text-white mb-4">Shots Details</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Shots Details</h3>
               <Card className="bg-white/10 border-white/20">
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-6 sm:p-8 text-center">
                   <div className="text-gray-300">
-                    <div className="text-lg mb-2">No shot statistics available yet</div>
-                    <p className="text-sm">Shot statistics will be displayed here once data is available.</p>
+                    <div className="text-base sm:text-lg mb-2">No shot statistics available yet</div>
+                    <p className="text-xs sm:text-sm">Shot statistics will be displayed here once data is available.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -169,29 +383,85 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
           </TabsContent>
 
           {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-6">
+          <TabsContent value="performance" className="space-y-4 sm:space-y-6">
             <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-8 text-center">
-                <div className="text-gray-300">
-                  <div className="text-lg mb-2">Performance metrics coming soon</div>
-                  <p className="text-sm">Detailed performance analytics will be available in future updates.</p>
+              <CardContent className="p-3 sm:p-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white">Skill Assessment</h3>
+                  <Button
+                    onClick={handleSaveRatings}
+                    disabled={isSaving}
+                    size="sm"
+                    className="bg-baseline-yellow text-black hover:bg-yellow-400 font-semibold text-xs sm:text-sm px-2 sm:px-4"
+                  >
+                    <Save size={14} className="mr-1 sm:mr-2" /> {isSaving ? "Saving..." : "Save Ratings"}
+                  </Button>
+                </div>
+
+                <div className="space-y-2 sm:space-y-4">
+                  {METRICS.map((metric) => (
+                    <div key={metric} className="flex items-center justify-between p-2 sm:p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                      <span className="text-gray-200 font-medium text-sm sm:text-base">{metric}</span>
+                      <div className="flex gap-1 sm:gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            size={20}
+                            className={`cursor-pointer transition-all hover:scale-110 sm:w-7 sm:h-7 ${(ratings[metric] || 0) >= star
+                              ? "fill-baseline-yellow text-baseline-yellow"
+                              : "text-gray-600"
+                              }`}
+                            onClick={() => handleStarClick(metric, star)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Attendance Tab */}
-          <TabsContent value="attendance" className="space-y-6">
-            <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-6">
-                <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-baseline-yellow mb-2">
+          <TabsContent value="attendance" className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {/* Monthly Stats */}
+              <Card className="bg-white/10 border-white/20">
+                <CardContent className="p-3 sm:p-6">
+                  <div className="flex items-center justify-between mb-2 sm:mb-4">
+                    <div className="p-2 sm:p-3 bg-blue-500/20 rounded-lg">
+                      <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-blue-400" />
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-400">Monthly</span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
                     {player.attendedClasses}
                   </div>
-                  <div className="text-sm text-gray-300">Total Classes Attended</div>
-                </div>
-                <div className="text-center text-gray-300">
-                  <p className="text-sm">Detailed attendance history will be available in future updates.</p>
+                  <div className="text-xs sm:text-sm text-gray-300">Classes Attended</div>
+                </CardContent>
+              </Card>
+
+              {/* Weekly Stats */}
+              <Card className="bg-white/10 border-white/20">
+                <CardContent className="p-3 sm:p-6">
+                  <div className="flex items-center justify-between mb-2 sm:mb-4">
+                    <div className="p-2 sm:p-3 bg-green-500/20 rounded-lg">
+                      <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-green-400" />
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-400">Weekly</span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+                    {player.weeklyAttendance}
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-300">Classes Attended</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-white/10 border-white/20">
+              <CardContent className="p-6 sm:p-8 text-center">
+                <div className="text-gray-300">
+                  <p className="text-xs sm:text-sm">Detailed day-by-day attendance history will be available in future updates.</p>
                 </div>
               </CardContent>
             </Card>
