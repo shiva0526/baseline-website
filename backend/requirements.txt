@@ -16,5 +16,5 @@ python-multipart
 psycopg2-binary      # PostgreSQL
 # mysqlclient        # MySQL/MariaDB
 # SQLite requires no extra driver
-
+email-validator
 # CORS (optional if required explicitly)
