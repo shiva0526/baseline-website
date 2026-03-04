@@ -296,19 +296,27 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
     y += 10;
 
     // === PAYMENT LINK SECTION (BOTTOM) ===
-    doc.setFillColor(40, 40, 40);
-    doc.roundedRect(14, y, pageWidth - 28, 30, 3, 3, 'F');
+    // Yellow accent border on the left
+    doc.setFillColor(234, 179, 8);
+    doc.roundedRect(14, y, pageWidth - 28, 36, 3, 3, 'F');
+    // Dark inner box
+    doc.setFillColor(30, 30, 30);
+    doc.roundedRect(18, y + 2, pageWidth - 36, 32, 2, 2, 'F');
 
     doc.setTextColor(234, 179, 8);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Payment', 20, y + 10);
+    doc.text('💳 Payment', 24, y + 14);
 
-    doc.setTextColor(100, 160, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 180, 255);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
     const paymentUrl = 'https://baseline-academy.com/pay';
-    doc.textWithLink('Click here to make payment: ' + paymentUrl, 20, y + 22, { url: paymentUrl });
+    doc.textWithLink('🔗 Click here to make payment', 24, y + 26, { url: paymentUrl });
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text(paymentUrl, 24, y + 32, {});
 
     // Save
     const safeName = player.name.replace(/[^a-zA-Z0-9]/g, '_');
