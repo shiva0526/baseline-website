@@ -49,26 +49,24 @@ def login(response: Response, form: OAuth2PasswordRequestForm = Depends(), db: S
     db.add(db_token)
     db.commit()
 
-    # Set cookies (adjust secure flag depending on env)
-    # access_token cookie: short lived
+    # Set cookies
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,           # set True in production (HTTPS)
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=60 * settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         path="/"
     )
-    # refresh token cookie
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,           # set True in production
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=60 * 60 * 24 * settings.REFRESH_TOKEN_EXPIRE_DAYS,
-        path="/auth/refresh"    # limit refresh cookie to refresh endpoint -> additional safety
+        path="/auth/refresh"
     )
 
     return {"access_token": access_token, "role": user.role, "token_type": "bearer"}
@@ -112,9 +110,9 @@ def refresh(response: Response, refresh_token: str | None = Cookie(None), db: Se
 
     new_access = create_access_token(payload_user)
     # set cookies
-    response.set_cookie("access_token", new_access, httponly=True, secure=False, samesite="lax",
+    response.set_cookie("access_token", new_access, httponly=True, secure=True, samesite="none",
                         max_age=60 * settings.ACCESS_TOKEN_EXPIRE_MINUTES, path="/")
-    response.set_cookie("refresh_token", new_refresh_token, httponly=True, secure=False, samesite="lax",
+    response.set_cookie("refresh_token", new_refresh_token, httponly=True, secure=True, samesite="none",
                         max_age=60 * 60 * 24 * settings.REFRESH_TOKEN_EXPIRE_DAYS, path="/auth/refresh")
     return {"access_token": new_access, "role": user.role, "token_type": "bearer"}
 
