@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
-import axiosClient from "@/api/axiosClient";
-import { updatePlayer, uploadAvatar } from "@/api/players";
+import { updatePlayer, uploadAvatar, savePerformanceRatings } from "@/api/players";
 import { jsPDF } from 'jspdf';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -154,8 +153,7 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
   const handleSaveRatings = async () => {
     setIsSaving(true);
     try {
-      // Calls the new PUT endpoint we created
-      await axiosClient.put(`/players/${player.id}/performance`, { ratings });
+      await savePerformanceRatings(player.id, ratings);
       toast({
         title: "Success",
         description: "Performance ratings saved successfully!",
@@ -556,7 +554,7 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
                       onClick={async () => {
                         setRatings({});
                         try {
-                          await axiosClient.put(`/players/${player.id}/performance`, { ratings: {} });
+                          await savePerformanceRatings(player.id, {});
                           toast({ title: "Reset", description: "All ratings have been cleared." });
                         } catch (error) {
                           console.error("Failed to reset ratings", error);

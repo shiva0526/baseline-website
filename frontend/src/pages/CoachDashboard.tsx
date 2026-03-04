@@ -10,9 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import PlayerProfile from '@/components/coach/PlayerProfile';
 import { getPlayers, addPlayer, removePlayer } from "@/api/players";
-import { getAttendance, updateAttendance } from "@/api/attendance";
-import { getAnnouncements } from "@/api/announcements";
-import axiosClient from "@/api/axiosClient";
+import { getAttendance, updateAttendance, downloadAttendanceReport } from "@/api/attendance";
 import { getTournaments as apiGetTournaments, createTournament as apiCreateTournament, deleteTournament as apiDeleteTournament } from "@/api/tournaments";
 import { getRegistrations as apiGetRegistrations, Registration as APIRegistration } from "@/api/registrations";
 
@@ -37,7 +35,7 @@ type Program = '2-Day' | '4-Day';
 interface Player {
   id: number;
   name: string;
-  program: Program;
+  program: string;
   attendedClasses: number;
   weeklyAttendance: number;
   phone?: string;
@@ -261,8 +259,8 @@ const CoachDashboard = () => {
 
   const handleDownloadReport = async () => {
     try {
-      const response = await axiosClient.get("/attendance/report", { responseType: "blob" });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await downloadAttendanceReport();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `report_${new Date().toISOString().split('T')[0]}.xlsx`);

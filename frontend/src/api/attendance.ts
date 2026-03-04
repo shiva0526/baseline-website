@@ -23,3 +23,8 @@ export const updateAttendance = async (date: string, attendance: AttendanceMap) 
   const res = await axiosClient.put(`/attendance/${date}`, { attendance });
   return res.data; // { status: "ok", date: "...", updated: N }
 };
+
+export const downloadAttendanceReport = async (): Promise<Blob> => {
+  const res = await axiosClient.get("/attendance/report", { responseType: "blob" });
+  return new Blob([res.data]);
+};

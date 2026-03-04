@@ -37,3 +37,8 @@ export const uploadAvatar = async (id: number, file: File) => {
   });
   return res.data;
 };
+
+export const savePerformanceRatings = async (id: number, ratings: Record<string, number>) => {
+  const res = await axiosClient.put(`/players/${id}/performance`, { ratings });
+  return res.data;
+};
