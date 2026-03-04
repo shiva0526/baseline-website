@@ -16,7 +16,7 @@ const features = [
   {
     icon: <Clock size={48} className="text-baseline-yellow" />,
     title: "Flexible Plans",
-    description: "Choose from 3-day, 5-day, or personalized one-on-one coaching sessions."
+    description: "Choose from 2-day, 4-day, or personalized one-on-one coaching sessions."
   }
 ];
 
@@ -60,7 +60,7 @@ const WhyUsSection = () => {
             We provide world-class basketball training with cutting-edge facilities and expert coaching.
           </p>
         </motion.div>
-        
+
         <motion.div
           variants={containerVariants}
           initial="hidden"

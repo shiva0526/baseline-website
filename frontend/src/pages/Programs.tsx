@@ -7,13 +7,13 @@ import { Link } from 'react-router-dom';
 const Programs = () => {
   const programDetails = [
     {
-      id: "3day",
-      title: "3-Day Batch",
+      id: "2day",
+      title: "2-Day Batch",
       price: "₹1000",
       period: "per week",
       description: "Perfect for players looking to improve their skills while balancing other commitments.",
       features: [
-        "3 training sessions per week (1.5 hours each)",
+        "2 training sessions per week (1.5 hours each)",
         "Focus on fundamental skill development",
         "Small group training (max 12 players)",
         "Basic strength and conditioning",
@@ -23,13 +23,13 @@ const Programs = () => {
       ideal: "Beginners and intermediate players with limited time"
     },
     {
-      id: "5day",
-      title: "5-Day Batch",
+      id: "4day",
+      title: "4-Day Batch",
       price: "₹2000",
       period: "per week",
       description: "Our most popular program for serious players looking to make significant improvements.",
       features: [
-        "5 training sessions per week (2 hours each)",
+        "4 training sessions per week (2 hours each)",
         "Comprehensive skill development",
         "Advanced tactical training",
         "Specialized strength and conditioning",
@@ -62,7 +62,7 @@ const Programs = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-gray-900 to-black">
         <div className="container mx-auto px-4">
@@ -76,37 +76,36 @@ const Programs = () => {
           </div>
         </div>
       </section>
-      
+
       {/* Programs Comparison */}
       <section className="section-padding">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {programDetails.map((program) => (
-              <div 
+              <div
                 key={program.id}
-                className={`rounded-lg overflow-hidden ${
-                  program.featured 
-                    ? 'border-2 border-baseline-yellow animate-glow relative -mt-4' 
+                className={`rounded-lg overflow-hidden ${program.featured
+                    ? 'border-2 border-baseline-yellow animate-glow relative -mt-4'
                     : 'border border-gray-800'
-                }`}
+                  }`}
               >
                 {program.featured && (
                   <div className="absolute top-0 right-0 bg-baseline-yellow text-black font-semibold px-4 py-1 rounded-bl-lg">
                     Popular
                   </div>
                 )}
-                
+
                 <div className="p-8 bg-gray-900">
                   <h3 className="text-2xl font-bold text-white mb-4">{program.title}</h3>
                   <div className="flex items-end mb-4">
                     <span className="text-4xl font-display font-bold text-baseline-yellow">{program.price}</span>
                     <span className="text-gray-400 ml-1">{program.period}</span>
                   </div>
-                  
+
                   <p className="text-gray-300 mb-6">
                     {program.description}
                   </p>
-                  
+
                   <div className="mb-8">
                     <div className="font-semibold text-white mb-3">What's included:</div>
                     <ul className="space-y-3">
@@ -118,19 +117,18 @@ const Programs = () => {
                       ))}
                     </ul>
                   </div>
-                  
+
                   <div className="mb-6">
                     <div className="font-semibold text-white mb-2">Ideal for:</div>
                     <p className="text-gray-300">{program.ideal}</p>
                   </div>
-                  
-                  <Link 
-                    to="/schedule" 
-                    className={`w-full text-center py-3 px-6 rounded-md font-semibold transition-all duration-300 ${
-                      program.featured 
-                        ? 'bg-baseline-yellow text-black hover:bg-opacity-90' 
+
+                  <Link
+                    to="/schedule"
+                    className={`w-full text-center py-3 px-6 rounded-md font-semibold transition-all duration-300 ${program.featured
+                        ? 'bg-baseline-yellow text-black hover:bg-opacity-90'
                         : 'bg-transparent border-2 border-baseline-yellow text-baseline-yellow hover:bg-baseline-yellow hover:text-black'
-                    }`}
+                      }`}
                   >
                     Enroll Now
                   </Link>
@@ -140,7 +138,7 @@ const Programs = () => {
           </div>
         </div>
       </section>
-      
+
       {/* FAQs */}
       <section className="section-padding bg-gradient-to-b from-gray-900 to-black">
         <div className="container mx-auto px-4">
@@ -148,7 +146,7 @@ const Programs = () => {
             <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-12">
               Frequently Asked <span className="gradient-text">Questions</span>
             </h2>
-            
+
             <div className="space-y-6">
               <div className="bg-black p-6 rounded-lg border border-gray-800">
                 <h3 className="text-xl font-bold text-white mb-3">How do I know which program is right for me?</h3>
@@ -156,21 +154,21 @@ const Programs = () => {
                   We recommend scheduling a free assessment session where our coaches can evaluate your current skill level and discuss your goals to recommend the best program for you.
                 </p>
               </div>
-              
+
               <div className="bg-black p-6 rounded-lg border border-gray-800">
                 <h3 className="text-xl font-bold text-white mb-3">Can I switch between programs?</h3>
                 <p className="text-gray-300">
                   Yes, you can upgrade or change your program at any time based on your progress and changing needs. Our coaches will help ensure a smooth transition.
                 </p>
               </div>
-              
+
               <div className="bg-black p-6 rounded-lg border border-gray-800">
                 <h3 className="text-xl font-bold text-white mb-3">What equipment do I need to bring?</h3>
                 <p className="text-gray-300">
                   Just bring your basketball shoes, comfortable athletic wear, and a water bottle. We provide all the necessary training equipment and basketballs.
                 </p>
               </div>
-              
+
               <div className="bg-black p-6 rounded-lg border border-gray-800">
                 <h3 className="text-xl font-bold text-white mb-3">Is there an age requirement?</h3>
                 <p className="text-gray-300">
@@ -178,7 +176,7 @@ const Programs = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="text-center mt-12">
               <p className="text-gray-300 mb-6">
                 Still have questions about our training programs?
@@ -190,7 +188,7 @@ const Programs = () => {
           </div>
         </div>
       </section>
-      
+
       <Footer />
     </div>
   );

@@ -5,11 +5,11 @@ import { Check, Star } from 'lucide-react';
 
 const plans = [
   {
-    title: "3-Day Batch",
+    title: "2-Day Batch",
     price: "₹1,000",
     period: "per week",
     features: [
-      "3 training sessions per week",
+      "2 training sessions per week",
       "Strength & conditioning",
       "Shooting mechanics focus",
       "Group drills and games",
@@ -19,11 +19,11 @@ const plans = [
     link: "/programs"
   },
   {
-    title: "5-Day Batch",
+    title: "4-Day Batch",
     price: "₹2,000",
     period: "per week",
     features: [
-      "5 training sessions per week",
+      "4 training sessions per week",
       "Advanced skill development",
       "Video analysis of technique",
       "Personalized feedback",
@@ -91,7 +91,7 @@ const PricingSection = () => {
             Flexible plans designed to fit your schedule and goals. All plans include access to our premium facilities.
           </p>
         </motion.div>
-        
+
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -104,11 +104,10 @@ const PricingSection = () => {
               key={index}
               variants={cardVariants}
               whileHover={{ scale: 1.05, y: -10 }}
-              className={`relative rounded-2xl overflow-hidden backdrop-blur-lg ${
-                plan.featured 
-                  ? 'bg-gradient-to-b from-baseline-yellow/20 to-baseline-yellow/5 border-2 border-baseline-yellow shadow-2xl shadow-baseline-yellow/20' 
+              className={`relative rounded-2xl overflow-hidden backdrop-blur-lg ${plan.featured
+                  ? 'bg-gradient-to-b from-baseline-yellow/20 to-baseline-yellow/5 border-2 border-baseline-yellow shadow-2xl shadow-baseline-yellow/20'
                   : 'bg-black/50 border border-gray-800'
-              }`}
+                }`}
             >
               {plan.featured && (
                 <div className="absolute top-0 right-0 bg-baseline-yellow text-black font-bold px-4 py-2 rounded-bl-2xl flex items-center gap-1">
@@ -116,10 +115,10 @@ const PricingSection = () => {
                   Most Popular
                 </div>
               )}
-              
+
               <div className="p-8">
                 <h3 className="text-2xl font-bold text-white mb-8">{plan.title}</h3>
-                
+
                 <ul className="space-y-4 mb-8">
                   {plan.features.map((feature, idx) => (
                     <motion.li
@@ -135,16 +134,15 @@ const PricingSection = () => {
                     </motion.li>
                   ))}
                 </ul>
-                
+
                 <Link to={plan.link}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${
-                      plan.featured 
-                        ? 'bg-baseline-yellow text-black hover:bg-baseline-yellow/90 shadow-lg shadow-baseline-yellow/30' 
+                    className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${plan.featured
+                        ? 'bg-baseline-yellow text-black hover:bg-baseline-yellow/90 shadow-lg shadow-baseline-yellow/30'
                         : 'bg-transparent border-2 border-baseline-yellow text-baseline-yellow hover:bg-baseline-yellow hover:text-black'
-                    }`}
+                      }`}
                   >
                     {plan.cta}
                   </motion.button>

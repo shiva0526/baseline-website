@@ -1,27 +1,39 @@
-import { useState } from 'react';
-import { ArrowLeft, User, Phone, CheckCircle, Calendar, Star, Save, Download } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ArrowLeft, User, Phone, CheckCircle, Calendar, Star, Save, Download, Pencil, Camera, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
 import axiosClient from "@/api/axiosClient";
+import { updatePlayer, uploadAvatar } from "@/api/players";
 import { jsPDF } from 'jspdf';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const getAvatarUrl = (path: string | null | undefined) => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${API_BASE}${path}`;
+};
 
 // Updated Interface to match Backend
 interface Player {
   id: number;
   name: string;
-  program: string; // or '3-Day' | '5-Day'
+  program: string;
   attendedClasses: number;
   weeklyAttendance: number;
-  phone?: string;           // Optional
-  avatar?: string | null;   // Optional
-  performance_ratings?: Record<string, number>; // New Field for stats
+  phone?: string;
+  batch?: string;
+  gender?: string | null;
+  age?: number | null;
+  avatar?: string | null;
+  performance_ratings?: Record<string, number>;
 }
 
 interface PlayerProfileProps {
   player: Player;
   onBack: () => void;
+  onPlayerUpdated?: (updatedPlayer: Player) => void;
 }
 
 interface PlayerStats {
@@ -40,14 +52,24 @@ const METRICS = [
   "Energy on Court"
 ];
 
-const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
+const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize ratings from player prop or default to empty
   const [ratings, setRatings] = useState<Record<string, number>>(() => {
     return player.performance_ratings || {};
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // --- Edit Mode State ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [editGender, setEditGender] = useState(player.gender || '');
+  const [editAge, setEditAge] = useState<string>(player.age != null ? String(player.age) : '');
+  const [editBatch, setEditBatch] = useState(player.batch || 'Batch 1');
+  const [editProgram, setEditProgram] = useState(player.program || '2-Day');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Load player stats from localStorage (Keep existing logic)
   const getPlayerStats = (): PlayerStats => {
@@ -67,8 +89,58 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
       .slice(0, 2);
   };
 
-  const playerAge = "25"; // Mock data
-  const playerGender = "Male"; // Mock data
+  // --- Avatar Upload Handler ---
+  const handleAvatarClick = () => {
+    if (isEditing && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    try {
+      const result = await uploadAvatar(player.id, file);
+      toast({ title: "Success", description: "Avatar uploaded!" });
+      if (onPlayerUpdated) {
+        onPlayerUpdated({ ...player, avatar: result.avatar_url });
+      }
+    } catch (error) {
+      console.error("Avatar upload failed", error);
+      toast({ title: "Error", description: "Failed to upload avatar.", variant: "destructive" });
+      setAvatarPreview(null);
+    }
+  };
+
+  // --- Save Profile Handler ---
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      const updatedData = {
+        gender: editGender || undefined,
+        age: editAge ? parseInt(editAge) : undefined,
+        batch: editBatch,
+        program: editProgram,
+      };
+      const result = await updatePlayer(player.id, updatedData);
+      toast({ title: "Success", description: "Profile updated!" });
+      setIsEditing(false);
+      if (onPlayerUpdated) {
+        onPlayerUpdated(result);
+      }
+    } catch (error) {
+      console.error("Profile update failed", error);
+      toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   // --- Handlers for Ratings ---
 
@@ -280,42 +352,125 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-4 sm:gap-6">
               {/* Avatar */}
-              <div className="flex-shrink-0">
-                {player.avatar ? (
-                  <img
-                    src={player.avatar}
-                    alt={player.name}
-                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-black/30"
-                  />
-                ) : (
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/30 flex items-center justify-center border-2 border-black/30">
-                    <span className="text-base sm:text-xl font-semibold text-black">
-                      {getInitials(player.name)}
-                    </span>
-                  </div>
-                )}
+              <div className="flex-shrink-0 relative">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                />
+                <div
+                  className={`relative ${isEditing ? 'cursor-pointer group' : ''}`}
+                  onClick={handleAvatarClick}
+                >
+                  {(avatarPreview || player.avatar) ? (
+                    <img
+                      src={avatarPreview || getAvatarUrl(player.avatar)!}
+                      alt={player.name}
+                      className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-black/30"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/30 flex items-center justify-center border-2 border-black/30">
+                      <span className="text-base sm:text-xl font-semibold text-black">
+                        {getInitials(player.name)}
+                      </span>
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera className="h-5 w-5 text-white" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Player Details */}
               <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
-                <h2 className="text-xl sm:text-3xl font-bold text-black truncate">{player.name}</h2>
-                <div className="flex flex-wrap gap-2 sm:gap-4 text-black/70 text-xs sm:text-sm">
-                  <span className="flex items-center gap-1">
-                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
-                    {playerAge} Years | {playerGender}
-                  </span>
-
-                  {player.phone && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
-                      {player.phone}
-                    </span>
-                  )}
-
-                  <span className="px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
-                    {player.program}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl sm:text-3xl font-bold text-black truncate">{player.name}</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
+                    disabled={isSavingProfile}
+                    className="text-black hover:bg-black/10 px-2"
+                  >
+                    {isEditing ? (
+                      <><Save className="h-4 w-4 mr-1" /> {isSavingProfile ? 'Saving...' : 'Save'}</>
+                    ) : (
+                      <><Pencil className="h-4 w-4 mr-1" /> Edit</>
+                    )}
+                  </Button>
                 </div>
+
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm">
+                    <input
+                      type="number"
+                      placeholder="Age"
+                      value={editAge}
+                      onChange={e => setEditAge(e.target.value)}
+                      className="w-16 bg-black/20 text-black placeholder-black/50 border border-black/30 rounded px-2 py-1 text-xs"
+                    />
+                    <select
+                      value={editGender}
+                      onChange={e => setEditGender(e.target.value)}
+                      className="bg-black/20 text-black border border-black/30 rounded px-2 py-1 text-xs"
+                    >
+                      <option value="">Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                    <select
+                      value={editProgram}
+                      onChange={e => setEditProgram(e.target.value)}
+                      className="bg-black/20 text-black border border-black/30 rounded px-2 py-1 text-xs"
+                    >
+                      <option value="2-Day">2-Day Program</option>
+                      <option value="4-Day">4-Day Program</option>
+                    </select>
+                    <select
+                      value={editBatch}
+                      onChange={e => setEditBatch(e.target.value)}
+                      className="bg-black/20 text-black border border-black/30 rounded px-2 py-1 text-xs"
+                    >
+                      <option value="Batch 1">Batch 1</option>
+                      <option value="Batch 2">Batch 2</option>
+                    </select>
+                    {isEditing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditing(false)}
+                        className="text-black/70 hover:bg-black/10 px-2 py-1 text-xs h-auto"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 sm:gap-4 text-black/70 text-xs sm:text-sm">
+                    <span className="flex items-center gap-1">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                      {player.age != null ? `${player.age} Years` : 'Age N/A'} | {player.gender || 'N/A'}
+                    </span>
+
+                    {player.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {player.phone}
+                      </span>
+                    )}
+
+                    <span className="px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
+                      {player.program}
+                    </span>
+                    <span className="px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
+                      {player.batch || 'Batch 1'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -388,14 +543,32 @@ const PlayerProfile = ({ player, onBack }: PlayerProfileProps) => {
               <CardContent className="p-3 sm:p-6">
                 <div className="flex justify-between items-center mb-4 sm:mb-6">
                   <h3 className="text-lg sm:text-xl font-semibold text-white">Skill Assessment</h3>
-                  <Button
-                    onClick={handleSaveRatings}
-                    disabled={isSaving}
-                    size="sm"
-                    className="bg-baseline-yellow text-black hover:bg-yellow-400 font-semibold text-xs sm:text-sm px-2 sm:px-4"
-                  >
-                    <Save size={14} className="mr-1 sm:mr-2" /> {isSaving ? "Saving..." : "Save Ratings"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={async () => {
+                        setRatings({});
+                        try {
+                          await axiosClient.put(`/players/${player.id}/performance`, { ratings: {} });
+                          toast({ title: "Reset", description: "All ratings have been cleared." });
+                        } catch (error) {
+                          console.error("Failed to reset ratings", error);
+                          toast({ title: "Error", description: "Failed to reset ratings.", variant: "destructive" });
+                        }
+                      }}
+                      size="sm"
+                      className="bg-gray-700 text-white hover:bg-gray-600 font-semibold text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      <RefreshCw size={14} className="mr-1 sm:mr-2" /> Reset
+                    </Button>
+                    <Button
+                      onClick={handleSaveRatings}
+                      disabled={isSaving}
+                      size="sm"
+                      className="bg-baseline-yellow text-black hover:bg-yellow-400 font-semibold text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      <Save size={14} className="mr-1 sm:mr-2" /> {isSaving ? "Saving..." : "Save Ratings"}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 sm:space-y-4">

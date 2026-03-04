@@ -22,8 +22,11 @@ class Player(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     program: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    batch: Mapped[str | None] = mapped_column(String(50), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     avatar: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
     # --- NEW FIELD: Stores stats like {"Dribbling": 4, "Passing": 3} ---
     performance_ratings: Mapped[dict | None] = mapped_column(JSON, nullable=True)

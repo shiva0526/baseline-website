@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .database import Base, engine
 # REMOVE "reports" from this list
 from .routers import auth, players, attendance, tournaments, registrations, announcements
 
 from .auth_utils import hash_password
+import os
 
 # settings = get_settings()
 
@@ -13,6 +15,11 @@ from .auth_utils import hash_password
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.APP_NAME)
+
+# Mount static files for avatar uploads
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,

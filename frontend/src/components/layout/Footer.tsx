@@ -117,7 +117,7 @@ const Footer = () => {
               Training Programs
             </h4>
             <nav className="flex flex-col space-y-3">
-              {['3-Day Batch', '5-Day Batch', 'One-to-One Coaching', 'Elite Training'].map((program) => (
+              {['2-Day Batch', '4-Day Batch', 'One-to-One Coaching', 'Elite Training'].map((program) => (
                 <motion.div
                   key={program}
                   whileHover={{ x: 5 }}

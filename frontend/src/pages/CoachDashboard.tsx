@@ -32,7 +32,7 @@ interface Tournament {
 }
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-type Program = '3-Day' | '5-Day';
+type Program = '2-Day' | '4-Day';
 
 interface Player {
   id: number;
@@ -41,6 +41,9 @@ interface Player {
   attendedClasses: number;
   weeklyAttendance: number;
   phone?: string;
+  batch?: string;
+  gender?: string | null;
+  age?: number | null;
   avatar?: string | null;
   performance_ratings?: Record<string, number>;
 }
@@ -62,8 +65,9 @@ const CoachDashboard = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayer, setNewPlayer] = useState({
     name: '',
-    program: '3-Day' as Program,
-    phone: '' // Added phone state
+    program: '2-Day' as Program,
+    batch: 'Batch 1', // Default value
+    phone: ''
   });
 
   // Announcements
@@ -218,7 +222,7 @@ const CoachDashboard = () => {
     if (checked) {
       const player = players.find(p => p.id === playerId);
       if (player) {
-        const limit = player.program === '5-Day' ? 5 : 3;
+        const limit = player.program === '4-Day' ? 4 : 2;
         if (player.weeklyAttendance >= limit) {
           const confirm = window.confirm(`⚠️ WARNING: Limit Reached\n${player.name} attended ${player.weeklyAttendance} classes this week.\nAdd extra class?`);
           if (!confirm) return;
@@ -289,7 +293,7 @@ const CoachDashboard = () => {
     try {
       const saved = await addPlayer(newPlayer);
       setPlayers([...players, saved]);
-      setNewPlayer({ name: "", program: "3-Day", phone: "" });
+      setNewPlayer({ name: "", program: "2-Day", batch: "Batch 1", phone: "" });
       toast({ title: "Player added" });
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
@@ -369,7 +373,10 @@ const CoachDashboard = () => {
     navigate('/', { replace: true });
   };
 
-  if (selectedPlayer) return <PlayerProfile player={selectedPlayer} onBack={() => setSelectedPlayer(null)} />;
+  if (selectedPlayer) return <PlayerProfile player={selectedPlayer} onBack={() => setSelectedPlayer(null)} onPlayerUpdated={(updated) => {
+    setPlayers(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+    setSelectedPlayer({ ...selectedPlayer, ...updated });
+  }} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 text-white">
@@ -469,7 +476,7 @@ const CoachDashboard = () => {
                 <div className="mt-4 space-y-3 max-h-[500px] overflow-y-auto">
                   <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-800 border-gray-700 rounded-lg px-4 py-2 mb-4 text-white" />
                   {filteredPlayers.map(p => {
-                    const weeklyLimit = p.program === '5-Day' ? 5 : 3;
+                    const weeklyLimit = p.program === '4-Day' ? 4 : 2;
                     const isOver = p.weeklyAttendance >= weeklyLimit;
                     return (
                       <div key={p.id} className="bg-gray-800/40 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-700/50">
@@ -484,7 +491,7 @@ const CoachDashboard = () => {
                             </h3>
                             <div className="flex gap-3 text-xs text-gray-400">
                               <span className="text-primary">{p.program}</span>
-                              <span className="hidden sm:inline">• Cycle: {p.attendedClasses}</span>
+                              <span className="hidden sm:inline">• {p.batch || 'Batch 1'}</span>
                               <span className={`hidden sm:inline ${isOver ? "text-yellow-500 font-bold" : ""}`}>• Week: {p.weeklyAttendance}</span>
                               <span>• Classes Attended: {p.attendedClasses}</span>
                             </div>
@@ -509,8 +516,12 @@ const CoachDashboard = () => {
                 <div className="space-y-4">
                   <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Name" value={newPlayer.name} onChange={e => setNewPlayer({ ...newPlayer, name: e.target.value })} />
                   <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Phone Number" value={newPlayer.phone} onChange={e => setNewPlayer({ ...newPlayer, phone: e.target.value })} />
+                  <select className="w-full bg-gray-800 border-gray-700 rounded p-3" value={newPlayer.batch} onChange={e => setNewPlayer({ ...newPlayer, batch: e.target.value })}>
+                    <option value="Batch 1">Batch 1</option>
+                    <option value="Batch 2">Batch 2</option>
+                  </select>
                   <select className="w-full bg-gray-800 border-gray-700 rounded p-3" value={newPlayer.program} onChange={e => setNewPlayer({ ...newPlayer, program: e.target.value as Program })}>
-                    <option value="3-Day">3-Day Program</option><option value="5-Day">5-Day Program</option>
+                    <option value="2-Day">2-Day Program</option><option value="4-Day">4-Day Program</option>
                   </select>
                   <Button onClick={handleAddPlayer} className="w-full bg-primary text-black hover:bg-primary/90"><Plus size={18} className="mr-2" /> Add Player</Button>
                 </div>
@@ -526,6 +537,7 @@ const CoachDashboard = () => {
                           <h3 className="font-semibold cursor-pointer hover:text-primary" onClick={() => setSelectedPlayer(player)}>{player.name}</h3>
                           <div className="flex items-center gap-3 text-sm text-gray-400">
                             <span className="bg-primary/20 text-primary px-2 rounded-full text-xs">{player.program}</span>
+                            <span className="bg-blue-500/20 text-blue-300 px-2 rounded-full text-xs">{player.batch}</span>
                             {player.phone && <span className="text-xs">📞 {player.phone}</span>}
                             <span>ID: {player.id}</span>
                           </div>

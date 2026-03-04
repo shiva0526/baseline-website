@@ -4,11 +4,11 @@ import { ArrowRight } from 'lucide-react';
 
 const programs = [
   {
-    title: "3-Day Batch",
+    title: "2-Day Batch",
     price: "₹1000",
     period: "per week",
     features: [
-      "3 training sessions per week",
+      "2 training sessions per week",
       "Strength & conditioning",
       "Shooting mechanics focus",
       "Group drills and games"
@@ -17,11 +17,11 @@ const programs = [
     link: "/programs"
   },
   {
-    title: "5-Day Batch",
+    title: "4-Day Batch",
     price: "₹2000",
     period: "per week",
     features: [
-      "5 training sessions per week",
+      "4 training sessions per week",
       "Advanced skill development",
       "Video analysis of technique",
       "Personalized feedback"
@@ -57,30 +57,29 @@ const ProgramsPreview = () => {
             Choose the program that fits your goals and schedule. All programs include access to our state-of-the-art facilities and equipment.
           </p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {programs.map((program, index) => (
-            <div 
-              key={index} 
-              className={`rounded-lg overflow-hidden ${
-                program.featured 
-                  ? 'border-2 border-baseline-yellow animate-glow relative -mt-4' 
+            <div
+              key={index}
+              className={`rounded-lg overflow-hidden ${program.featured
+                  ? 'border-2 border-baseline-yellow animate-glow relative -mt-4'
                   : 'border border-gray-800'
-              }`}
+                }`}
             >
               {program.featured && (
                 <div className="absolute top-0 right-0 bg-baseline-yellow text-black font-semibold px-4 py-1 rounded-bl-lg">
                   Popular
                 </div>
               )}
-              
+
               <div className="p-8 bg-gray-900">
                 <h3 className="text-2xl font-bold text-white mb-4">{program.title}</h3>
                 <div className="flex items-end mb-6">
                   <span className="text-4xl font-display font-bold text-baseline-yellow">{program.price}</span>
                   <span className="text-gray-400 ml-1">{program.period}</span>
                 </div>
-                
+
                 <ul className="space-y-3 mb-8">
                   {program.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start">
@@ -89,14 +88,13 @@ const ProgramsPreview = () => {
                     </li>
                   ))}
                 </ul>
-                
-                <Link 
-                  to={program.link} 
-                  className={`w-full text-center py-3 px-6 rounded-md font-semibold transition-all duration-300 ${
-                    program.featured 
-                      ? 'bg-baseline-yellow text-black hover:bg-opacity-90' 
+
+                <Link
+                  to={program.link}
+                  className={`w-full text-center py-3 px-6 rounded-md font-semibold transition-all duration-300 ${program.featured
+                      ? 'bg-baseline-yellow text-black hover:bg-opacity-90'
                       : 'bg-transparent border-2 border-baseline-yellow text-baseline-yellow hover:bg-baseline-yellow hover:text-black'
-                  }`}
+                    }`}
                 >
                   {program.cta}
                 </Link>
@@ -104,7 +102,7 @@ const ProgramsPreview = () => {
             </div>
           ))}
         </div>
-        
+
         <div className="text-center">
           <Link to="/programs" className="inline-flex items-center text-baseline-yellow hover:underline font-semibold">
             View All Programs <ArrowRight size={16} className="ml-2" />

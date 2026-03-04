@@ -32,7 +32,10 @@ class UserOut(BaseModel):
 class PlayerBase(BaseModel):
     name: str
     program: Optional[str] = None
+    batch: Optional[str] = None
     phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
 
 class PlayerCreate(PlayerBase):
     pass
@@ -40,8 +43,11 @@ class PlayerCreate(PlayerBase):
 class PlayerUpdate(BaseModel):
     name: Optional[str] = None
     program: Optional[str] = None
+    batch: Optional[str] = None
     phone: Optional[str] = None
+    gender: Optional[str] = None
     age: Optional[int] = None
+    avatar: Optional[str] = None
 
 # --- NEW: Schema for saving performance ratings ---
 class PlayerPerformanceUpdate(BaseModel):
@@ -51,8 +57,11 @@ class PlayerOut(PlayerBase):
     id: int
     name: str
     program: Optional[str] = None
+    batch: Optional[str] = None
     phone: Optional[str] = None
     avatar: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
     
     # Calculated fields
     attendedClasses: int

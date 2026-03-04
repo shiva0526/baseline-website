@@ -20,25 +20,23 @@ const Schedule = () => {
 
   const batches = [
     {
-      id: '3day',
-      title: '3-Day Batch',
+      id: '2day',
+      title: '2-Day Batch',
       price: '₹1000/week',
       schedule: [
         { day: 'Monday', times: ['4:00 PM - 5:30 PM', '6:00 PM - 7:30 PM'] },
-        { day: 'Wednesday', times: ['4:00 PM - 5:30 PM', '6:00 PM - 7:30 PM'] },
-        { day: 'Friday', times: ['4:00 PM - 5:30 PM', '6:00 PM - 7:30 PM'] }
+        { day: 'Wednesday', times: ['4:00 PM - 5:30 PM', '6:00 PM - 7:30 PM'] }
       ]
     },
     {
-      id: '5day',
-      title: '5-Day Batch',
+      id: '4day',
+      title: '4-Day Batch',
       price: '₹2000/week',
       schedule: [
         { day: 'Monday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] },
         { day: 'Tuesday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] },
         { day: 'Wednesday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] },
-        { day: 'Thursday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] },
-        { day: 'Friday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] }
+        { day: 'Thursday', times: ['4:00 PM - 6:00 PM', '6:30 PM - 8:30 PM'] }
       ]
     },
     {
@@ -58,16 +56,16 @@ const Schedule = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Here you would typically send this data to your backend
     console.log("Form submitted:", { ...formData, batch: selectedBatch, time: selectedTime });
-    
+
     // Show success toast
     toast({
       title: "Booking Requested",
       description: "We've received your booking request. We'll contact you shortly to confirm.",
     });
-    
+
     // Reset form
     setFormData({
       name: '',
@@ -83,7 +81,7 @@ const Schedule = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-gray-900 to-black">
         <div className="container mx-auto px-4">
@@ -97,7 +95,7 @@ const Schedule = () => {
           </div>
         </div>
       </section>
-      
+
       {/* Booking Section */}
       <section className="section-padding">
         <div className="container mx-auto px-4">
@@ -106,16 +104,15 @@ const Schedule = () => {
             <div className="lg:col-span-1">
               <div className="bg-gray-900 rounded-lg p-6 border border-gray-800 sticky top-24">
                 <h2 className="text-2xl font-bold mb-6">Select Program</h2>
-                
+
                 <div className="space-y-4">
                   {batches.map((batch) => (
-                    <div 
+                    <div
                       key={batch.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        selectedBatch === batch.id 
-                          ? 'border-baseline-yellow bg-gray-800' 
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedBatch === batch.id
+                          ? 'border-baseline-yellow bg-gray-800'
                           : 'border-gray-700 hover:border-gray-500'
-                      }`}
+                        }`}
                       onClick={() => {
                         setSelectedBatch(batch.id);
                         setSelectedTime(null);
@@ -132,7 +129,7 @@ const Schedule = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Schedule and Form */}
             <div className="lg:col-span-2">
               {selectedBatch ? (
@@ -143,20 +140,19 @@ const Schedule = () => {
                       <Clock size={24} className="mr-2 text-baseline-yellow" />
                       Available Times
                     </h2>
-                    
+
                     <div className="space-y-6">
                       {batches.find(b => b.id === selectedBatch)?.schedule.map((day, idx) => (
                         <div key={idx} className="border-b border-gray-700 pb-4 last:border-0">
                           <h3 className="font-semibold mb-3">{day.day}</h3>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {day.times.map((time, timeIdx) => (
-                              <div 
+                              <div
                                 key={timeIdx}
-                                className={`p-3 rounded-md cursor-pointer text-center transition-all ${
-                                  selectedTime === `${day.day}-${time}` 
-                                    ? 'bg-baseline-yellow text-black' 
+                                className={`p-3 rounded-md cursor-pointer text-center transition-all ${selectedTime === `${day.day}-${time}`
+                                    ? 'bg-baseline-yellow text-black'
                                     : 'bg-gray-800 hover:bg-gray-700'
-                                }`}
+                                  }`}
                                 onClick={() => setSelectedTime(`${day.day}-${time}`)}
                               >
                                 {time}
@@ -167,14 +163,14 @@ const Schedule = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Booking Form */}
                   <div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
                     <h2 className="text-2xl font-bold mb-6 flex items-center">
                       <Users size={24} className="mr-2 text-baseline-yellow" />
                       Complete Your Booking
                     </h2>
-                    
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -188,7 +184,7 @@ const Schedule = () => {
                             className="w-full px-4 py-2 rounded-md bg-gray-800 border border-gray-700 focus:border-baseline-yellow focus:outline-none"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-gray-300 mb-2">Email</label>
                           <input
@@ -200,7 +196,7 @@ const Schedule = () => {
                             className="w-full px-4 py-2 rounded-md bg-gray-800 border border-gray-700 focus:border-baseline-yellow focus:outline-none"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-gray-300 mb-2">Phone</label>
                           <input
@@ -212,7 +208,7 @@ const Schedule = () => {
                             className="w-full px-4 py-2 rounded-md bg-gray-800 border border-gray-700 focus:border-baseline-yellow focus:outline-none"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-gray-300 mb-2">Age</label>
                           <input
@@ -224,7 +220,7 @@ const Schedule = () => {
                             className="w-full px-4 py-2 rounded-md bg-gray-800 border border-gray-700 focus:border-baseline-yellow focus:outline-none"
                           />
                         </div>
-                        
+
                         <div className="md:col-span-2">
                           <label className="block text-gray-300 mb-2">Basketball Experience</label>
                           <select
@@ -240,7 +236,7 @@ const Schedule = () => {
                           </select>
                         </div>
                       </div>
-                      
+
                       <div className="border-t border-gray-700 pt-6">
                         <h3 className="font-semibold mb-3">Your Selection</h3>
                         <div className="bg-gray-800 p-4 rounded-md mb-6">
@@ -255,7 +251,7 @@ const Schedule = () => {
                             </span>
                           </div>
                         </div>
-                        
+
                         <Button
                           type="submit"
                           className="w-full bg-baseline-yellow hover:bg-opacity-90 text-black font-semibold py-3 rounded-md"
@@ -282,7 +278,7 @@ const Schedule = () => {
           </div>
         </div>
       </section>
-      
+
       <Footer />
     </div>
   );

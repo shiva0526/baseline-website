@@ -1,11 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import date, timedelta, datetime
 import calendar
+import os
+import uuid
 
 from .. import models, schemas
 from ..database import get_db
+
+# Ensure upload directory exists
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "avatars")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/players", tags=["players"])
 
@@ -69,11 +76,13 @@ def list_players(db: Session = Depends(get_db)):
             "id": p.id,
             "name": p.name,
             "program": p.program,
+            "batch": p.batch,
             "phone": p.phone, 
-            "avatar": p.avatar, 
+            "avatar": p.avatar,
+            "gender": p.gender,
+            "age": p.age,
             "attendedClasses": attended_count_cycle, 
             "weeklyAttendance": weekly_attendance,
-            # --- NEW: Return ratings so they show up in the profile ---
             "performance_ratings": p.performance_ratings or {}
         })
     
@@ -90,8 +99,11 @@ def create_player(payload: schemas.PlayerCreate, db: Session = Depends(get_db)):
         "id": p.id,
         "name": p.name,
         "program": p.program,
+        "batch": p.batch,
         "phone": p.phone,
         "avatar": p.avatar,
+        "gender": p.gender,
+        "age": p.age,
         "attendedClasses": 0,
         "weeklyAttendance": 0,
         "performance_ratings": {}
@@ -134,12 +146,90 @@ def update_performance(player_id: int, payload: schemas.PlayerPerformanceUpdate,
         "id": p.id,
         "name": p.name,
         "program": p.program,
+        "batch": p.batch,
         "phone": p.phone,
         "avatar": p.avatar,
+        "gender": p.gender,
+        "age": p.age,
         "attendedClasses": attended_count_cycle, 
         "weeklyAttendance": weekly_attendance,
         "performance_ratings": p.performance_ratings
     }
+
+# --- UPDATE PLAYER DETAILS ---
+@router.put("/{player_id}", response_model=schemas.PlayerOut)
+def update_player(player_id: int, payload: schemas.PlayerUpdate, db: Session = Depends(get_db)):
+    p = db.query(models.Player).get(player_id)
+    if not p:
+        raise HTTPException(404, "Player not found")
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(p, key, value)
+    
+    db.commit()
+    db.refresh(p)
+    
+    # Recalculate attendance stats
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday())
+    join_date = p.created_at
+    if isinstance(join_date, datetime):
+        join_date = join_date.date()
+    cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
+    
+    attended_count_cycle = 0
+    weekly_attendance = 0
+    for record in p.attendance:
+        if record.status:
+            rec_date = record.date
+            if isinstance(rec_date, datetime):
+                rec_date = rec_date.date()
+            if cycle_start <= rec_date < cycle_end:
+                attended_count_cycle += 1
+            if rec_date >= start_of_week:
+                weekly_attendance += 1
+
+    return {
+        "id": p.id,
+        "name": p.name,
+        "program": p.program,
+        "batch": p.batch,
+        "phone": p.phone,
+        "avatar": p.avatar,
+        "gender": p.gender,
+        "age": p.age,
+        "attendedClasses": attended_count_cycle,
+        "weeklyAttendance": weekly_attendance,
+        "performance_ratings": p.performance_ratings or {}
+    }
+
+# --- AVATAR UPLOAD ---
+@router.post("/{player_id}/avatar")
+async def upload_avatar(player_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    p = db.query(models.Player).get(player_id)
+    if not p:
+        raise HTTPException(404, "Player not found")
+    
+    # Validate file type
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        raise HTTPException(400, "Only JPEG, PNG, and WebP images are allowed")
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if file.filename else "jpg"
+    filename = f"{player_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    
+    # Save file
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    
+    # Update player avatar path
+    p.avatar = f"/static/avatars/{filename}"
+    db.commit()
+    
+    return {"avatar_url": p.avatar}
 
 @router.delete("/{player_id}", status_code=204)
 def delete_player(player_id: int, db: Session = Depends(get_db)):

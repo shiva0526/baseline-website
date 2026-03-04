@@ -10,7 +10,7 @@ const features = [
   {
     icon: <Calendar size={48} className="text-baseline-yellow" />,
     title: "Flexible Programs",
-    description: "Choose from 3-day, 5-day, or one-on-one sessions to fit your schedule."
+    description: "Choose from 2-day, 4-day, or one-on-one sessions to fit your schedule."
   },
   {
     icon: <Users size={48} className="text-baseline-yellow" />,
@@ -36,11 +36,11 @@ const FeaturesSection = () => {
             At BaseLine Academy, we combine elite coaching, cutting-edge training techniques, and a supportive community to develop complete basketball players.
           </p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="bg-black border border-gray-800 rounded-lg p-8 text-center card-hover"
             >
               <div className="flex justify-center mb-6">

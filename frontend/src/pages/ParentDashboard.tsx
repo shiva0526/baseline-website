@@ -46,7 +46,7 @@ const ParentDashboard = () => {
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     fetchPlayerData();
   }, []);
@@ -55,7 +55,7 @@ const ParentDashboard = () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate('/login');
         return;
@@ -94,10 +94,10 @@ const ParentDashboard = () => {
             phone: '+1 (555) 123-4567'
           },
           batches: {
-            name: '5-Day Elite Program',
+            name: '4-Day Elite Program',
             start_time: '16:00',
             end_time: '18:00',
-            days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+            days: ['monday', 'tuesday', 'wednesday', 'thursday']
           }
         });
       } else {
@@ -139,27 +139,27 @@ const ParentDashboard = () => {
         ]);
 
         setPaymentHistory([
-          { 
-            id: '1', 
-            amount: 250.00, 
-            status: 'paid', 
-            due_date: '2025-05-01', 
+          {
+            id: '1',
+            amount: 250.00,
+            status: 'paid',
+            due_date: '2025-05-01',
             paid_date: '2025-05-01',
             payment_method: 'Credit Card'
           },
-          { 
-            id: '2', 
-            amount: 250.00, 
-            status: 'paid', 
-            due_date: '2025-04-01', 
+          {
+            id: '2',
+            amount: 250.00,
+            status: 'paid',
+            due_date: '2025-04-01',
             paid_date: '2025-04-01',
             payment_method: 'Credit Card'
           },
-          { 
-            id: '3', 
-            amount: 250.00, 
-            status: 'paid', 
-            due_date: '2025-03-01', 
+          {
+            id: '3',
+            amount: 250.00,
+            status: 'paid',
+            due_date: '2025-03-01',
             paid_date: '2025-03-01',
             payment_method: 'Credit Card'
           }
@@ -177,7 +177,7 @@ const ParentDashboard = () => {
       setLoading(false);
     }
   };
-  
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -208,22 +208,22 @@ const ParentDashboard = () => {
 
   const getNextClassInfo = () => {
     if (!playerData?.batches) return 'Monday, May 26, 2025 at 4:00 PM';
-    
+
     const { start_time, days } = playerData.batches;
     const today = new Date();
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    
+
     // Find next class day
     for (let i = 1; i <= 7; i++) {
       const nextDay = new Date(today);
       nextDay.setDate(today.getDate() + i);
       const dayName = dayNames[nextDay.getDay()];
-      
+
       if (days.includes(dayName)) {
         return `${formatDate(nextDay.toISOString())} at ${formatTime(start_time)}`;
       }
     }
-    
+
     return 'No upcoming classes scheduled';
   };
 
@@ -246,7 +246,7 @@ const ParentDashboard = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Dashboard Header */}
@@ -257,7 +257,7 @@ const ParentDashboard = () => {
               <img src="/images/Logo-Baseline-copy.png" alt="BaseLine Academy" className="h-12 mr-4" />
               <h1 className="text-xl font-bold">Parent Dashboard</h1>
             </div>
-            
+
             <div className="flex space-x-4">
               <Button variant="ghost" onClick={handleLogout} className="text-gray-300">
                 <LogOut size={18} className="mr-2" /> Logout
@@ -266,7 +266,7 @@ const ParentDashboard = () => {
           </div>
         </div>
       </header>
-      
+
       {/* Dashboard Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
@@ -281,7 +281,7 @@ const ParentDashboard = () => {
               <Award className="mr-2 h-4 w-4" /> Tournaments
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -290,18 +290,18 @@ const ParentDashboard = () => {
                 <div className="flex justify-between items-start mb-6">
                   <h2 className="text-xl font-bold">Player Profile</h2>
                 </div>
-                
+
                 <div className="flex flex-col md:flex-row">
                   <div className="bg-gray-800 rounded-full w-24 h-24 flex items-center justify-center mb-4 md:mb-0 md:mr-6">
                     <UserCircle size={64} className="text-gray-400" />
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-xl font-semibold">{playerData.profiles.full_name}</h3>
                       <p className="text-gray-400">Age: {playerData.age}</p>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-500">Program</p>
@@ -323,18 +323,18 @@ const ParentDashboard = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Next Class */}
               <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 flex flex-col">
                 <h2 className="text-xl font-bold mb-6">Next Class</h2>
-                
+
                 <div className="flex-1 flex flex-col justify-center items-center text-center">
                   <Calendar size={48} className="text-baseline-yellow mb-4" />
                   <p className="text-lg font-medium mb-1">{getNextClassInfo()}</p>
                 </div>
               </div>
             </div>
-            
+
             {/* Payment History */}
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -343,7 +343,7 @@ const ParentDashboard = () => {
                   <FileSpreadsheet size={16} className="mr-2" /> View All
                 </Button>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -361,13 +361,12 @@ const ParentDashboard = () => {
                         <td className="py-3 px-4">Monthly Program Fee</td>
                         <td className="py-3 px-4 text-right">${payment.amount.toFixed(2)}</td>
                         <td className="py-3 px-4">
-                          <span className={`inline-block w-full text-center px-2 py-0.5 rounded-full text-xs ${
-                            payment.status === 'paid' 
-                              ? 'bg-green-900 text-green-300' 
+                          <span className={`inline-block w-full text-center px-2 py-0.5 rounded-full text-xs ${payment.status === 'paid'
+                              ? 'bg-green-900 text-green-300'
                               : payment.status === 'pending'
-                              ? 'bg-yellow-900 text-yellow-300'
-                              : 'bg-red-900 text-red-300'
-                          }`}>
+                                ? 'bg-yellow-900 text-yellow-300'
+                                : 'bg-red-900 text-red-300'
+                            }`}>
                             {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                           </span>
                         </td>
@@ -378,51 +377,50 @@ const ParentDashboard = () => {
               </div>
             </div>
           </TabsContent>
-          
+
           {/* Attendance Tab */}
           <TabsContent value="attendance" className="space-y-8">
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
               <h2 className="text-xl font-bold mb-6">Attendance History</h2>
-              
+
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-gray-400">Total Classes Attended</p>
                   <p className="text-3xl font-bold">{attendanceData.filter(r => r.is_present).length}</p>
                 </div>
-                
+
                 <div>
                   <p className="text-sm text-gray-400">Attendance Rate</p>
                   <p className="text-3xl font-bold text-baseline-yellow">{calculateAttendanceRate()}</p>
                 </div>
-                
+
                 <div>
                   <Button variant="outline" size="sm">
                     View Full Calendar
                   </Button>
                 </div>
               </div>
-              
+
               <h3 className="font-medium mb-4">Recent Classes</h3>
               <div className="space-y-2">
                 {attendanceData.slice(0, 5).map((record, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
                   >
                     <p>{formatDate(record.date)}</p>
-                    <span 
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        record.is_present 
-                          ? 'bg-green-900 text-green-300' 
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs ${record.is_present
+                          ? 'bg-green-900 text-green-300'
                           : 'bg-red-900 text-red-300'
-                      }`}
+                        }`}
                     >
                       {record.is_present ? 'Present' : 'Absent'}
                     </span>
                   </div>
                 ))}
               </div>
-              
+
               <div className="mt-8">
                 <h3 className="font-medium mb-4">Monthly Attendance</h3>
                 <div className="bg-gray-800 rounded-lg p-4 h-64 flex items-center justify-center">
@@ -431,40 +429,40 @@ const ParentDashboard = () => {
               </div>
             </div>
           </TabsContent>
-          
+
           {/* Tournaments Tab */}
           <TabsContent value="tournaments" className="space-y-8">
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
               <h2 className="text-xl font-bold mb-6">Upcoming Tournaments</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="border border-gray-800 rounded-lg p-4">
                   <h3 className="text-lg font-medium mb-2">BaseLine Summer Championship</h3>
                   <p className="text-gray-400 mb-4">June 15, 2025</p>
-                  
+
                   <div className="bg-green-900/30 border border-green-800 text-green-200 px-4 py-2 rounded text-center">
                     Registered
                   </div>
                 </div>
-                
+
                 <div className="border border-gray-800 rounded-lg p-4">
                   <h3 className="text-lg font-medium mb-2">Skills Workshop</h3>
                   <p className="text-gray-400 mb-4">July 10, 2025</p>
-                  
+
                   <Button className="button-primary w-full">
                     Register
                   </Button>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
               <h2 className="text-xl font-bold mb-6">Past Tournament Results</h2>
-              
+
               <div className="border border-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2">Winter Elite Showdown</h3>
                 <p className="text-gray-400 mb-4">December 10, 2024</p>
-                
+
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Player Stats</h4>
                   <div className="grid grid-cols-2 gap-4">
@@ -486,7 +484,7 @@ const ParentDashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <Button variant="outline" className="w-full">
                     <FileSpreadsheet size={16} className="mr-2" /> View Full Results

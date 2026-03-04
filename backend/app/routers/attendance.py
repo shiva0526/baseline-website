@@ -72,10 +72,10 @@ def generate_attendance_report(
         total_classes_expected = 0
         program_name = player.program or ""
         
-        if "3-Day" in program_name:
-            total_classes_expected = 12
-        elif "5-Day" in program_name:
-            total_classes_expected = 20
+        if "2-Day" in program_name:
+            total_classes_expected = 8
+        elif "4-Day" in program_name:
+            total_classes_expected = 16
             
         # 3. Classes Attended (ONLY within this calculated cycle)
         attended_count = 0
@@ -103,6 +103,7 @@ def generate_attendance_report(
         
         report_data.append({
             "Player Name": player.name,
+            "Batch": player.batch or "N/A",
             "Cycle Start": start_date,
             "Cycle End": end_date,
             "Program": program_name,
