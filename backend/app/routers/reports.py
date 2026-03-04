@@ -4,8 +4,7 @@ from datetime import datetime
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user 
-# Import both service modules
-from ..services import pdf_service #, chart_service
+from ..services import pdf_service
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -78,18 +77,10 @@ def generate_report(
     print(f"DEBUG: Actual: {attended} classes")
     print(f"DEBUG: Result: {percentage}%")
 
-    # ==================================================================
-    # 4. Generate Graph
-    # ==================================================================
-    try:
-        # Generates the pie chart and returns base64 string
-        chart_base64 = chart_service.generate_attendance_pie_chart(attended, total_expected)
-    except Exception as e:
-        print(f"WARNING: Chart generation failed: {e}")
-        chart_base64 = "" # Handle error gracefully so report still generates without graph
+
 
     # ==================================================================
-    # 5. Save & Generate PDF
+    # 4. Save & Generate PDF
     # ==================================================================
 
     new_report = models.Report(
@@ -116,8 +107,6 @@ def generate_report(
         "attendance_percentage": percentage,
         "feedback": payload.feedback,
         "generated_at": datetime.now().strftime("%Y-%m-%d"),
-        # Add the graph image here
-        "chart_image": chart_base64
     }
 
     try:
