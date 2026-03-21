@@ -49,7 +49,7 @@ def list_players(db: Session = Depends(get_db)):
 
     for p in players:
         # Handle datetime conversion
-        join_date = p.created_at
+        join_date = p.joining_date or p.created_at
         if isinstance(join_date, datetime):
             join_date = join_date.date()
             
@@ -81,6 +81,8 @@ def list_players(db: Session = Depends(get_db)):
             "avatar": p.avatar,
             "gender": p.gender,
             "age": p.age,
+            "joining_date": p.joining_date,
+            "created_at": p.created_at,
             "attendedClasses": attended_count_cycle, 
             "weeklyAttendance": weekly_attendance,
             "performance_ratings": p.performance_ratings or {}
@@ -104,6 +106,8 @@ def create_player(payload: schemas.PlayerCreate, db: Session = Depends(get_db)):
         "avatar": p.avatar,
         "gender": p.gender,
         "age": p.age,
+        "joining_date": p.joining_date,
+        "created_at": p.created_at,
         "attendedClasses": 0,
         "weeklyAttendance": 0,
         "performance_ratings": {}
@@ -124,7 +128,7 @@ def update_performance(player_id: int, payload: schemas.PlayerPerformanceUpdate,
     # Recalculate attendance stats for the response (reusing logic for accuracy)
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
-    join_date = p.created_at
+    join_date = p.joining_date or p.created_at
     if isinstance(join_date, datetime):
         join_date = join_date.date()
     cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
@@ -151,6 +155,8 @@ def update_performance(player_id: int, payload: schemas.PlayerPerformanceUpdate,
         "avatar": p.avatar,
         "gender": p.gender,
         "age": p.age,
+        "joining_date": p.joining_date,
+        "created_at": p.created_at,
         "attendedClasses": attended_count_cycle, 
         "weeklyAttendance": weekly_attendance,
         "performance_ratings": p.performance_ratings
@@ -173,7 +179,7 @@ def update_player(player_id: int, payload: schemas.PlayerUpdate, db: Session = D
     # Recalculate attendance stats
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
-    join_date = p.created_at
+    join_date = p.joining_date or p.created_at
     if isinstance(join_date, datetime):
         join_date = join_date.date()
     cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
@@ -199,6 +205,8 @@ def update_player(player_id: int, payload: schemas.PlayerUpdate, db: Session = D
         "avatar": p.avatar,
         "gender": p.gender,
         "age": p.age,
+        "joining_date": p.joining_date,
+        "created_at": p.created_at,
         "attendedClasses": attended_count_cycle,
         "weeklyAttendance": weekly_attendance,
         "performance_ratings": p.performance_ratings or {}

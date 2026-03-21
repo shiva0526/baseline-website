@@ -1,369 +1,47 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, Users, Award, User, FileSpreadsheet, Bell, LogOut, Plus, Download, Trash2, X, Check, Menu, Clock, CheckCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Users, Award, FileSpreadsheet, Bell, LogOut, CheckCircle, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; // Added Sheet for mobile sidebar
-import { Switch } from '@/components/ui/switch';
-import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import PlayerProfile from '@/components/coach/PlayerProfile';
-import { getPlayers, addPlayer, removePlayer } from "@/api/players";
-import { getAttendance, updateAttendance, downloadAttendanceReport } from "@/api/attendance";
-import { getTournaments as apiGetTournaments, createTournament as apiCreateTournament, deleteTournament as apiDeleteTournament } from "@/api/tournaments";
-import { getRegistrations as apiGetRegistrations, Registration as APIRegistration } from "@/api/registrations";
 
-// --- Interfaces ---
+// Hooks
+import { usePlayers } from '@/features/coach/hooks/usePlayers';
+import { useAttendance } from '@/features/coach/hooks/useAttendance';
+import { useTournaments } from '@/features/coach/hooks/useTournaments';
+import { useRegistrations } from '@/features/coach/hooks/useRegistrations';
+import { useAnnouncements } from '@/features/coach/hooks/useAnnouncements';
 
-interface Tournament {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  description: string;
-  matchType: string;
-  ageGroups: string[];
-  registrationOpen: string;
-  registrationClose: string;
-  status?: 'upcoming' | 'completed' | 'cancelled';
-}
+// Tabs
+import AttendanceTab from '@/features/coach/tabs/AttendanceTab';
+import PlayersTab from '@/features/coach/tabs/PlayersTab';
+import TournamentsTab from '@/features/coach/tabs/TournamentsTab';
+import RegistrationsTab from '@/features/coach/tabs/RegistrationsTab';
+import AnnouncementsTab from '@/features/coach/tabs/AnnouncementsTab';
 
-const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-type Program = '2-Day' | '4-Day';
-
-interface Player {
-  id: number;
-  name: string;
-  program: string;
-  attendedClasses: number;
-  weeklyAttendance: number;
-  phone?: string;
-  batch?: string;
-  gender?: string | null;
-  age?: number | null;
-  avatar?: string | null;
-  performance_ratings?: Record<string, number>;
-}
-
-interface Announcement {
-  id: number;
-  text: string;
-  duration: '24hours' | '48hours' | 'manual';
-  createdAt: number;
-  expiresAt?: number;
-}
+// Dialogs
+import RemovePlayerDialog from '@/features/coach/dialogs/RemovePlayerDialog';
+import CancelTournamentDialog from '@/features/coach/dialogs/CancelTournamentDialog';
+import WhatsAppDialog from '@/features/coach/dialogs/WhatsAppDialog';
 
 const CoachDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { logoutUser } = useAuth();
 
-  // --- State ---
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [newPlayer, setNewPlayer] = useState({
-    name: '',
-    program: '2-Day' as Program,
-    batch: 'Batch 1', // Default value
-    phone: ''
-  });
-
-  // Announcements
-  const [announcementText, setAnnouncementText] = useState('');
-  const [announcementDuration, setAnnouncementDuration] = useState<'24hours' | '48hours' | 'manual'>('24hours');
-  const [currentAnnouncement, setCurrentAnnouncement] = useState<Announcement | null>(null);
-
-  const [allTournaments, setAllTournaments] = useState<Tournament[]>([]);
-  const [pastTournaments, setPastTournaments] = useState<Tournament[]>([]);
-  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [tournamentToCancel, setTournamentToCancel] = useState<number | null>(null);
-  const [tournamentForm, setTournamentForm] = useState({
-    title: '', date: '', location: '', description: '',
-    matchType: '3v3', ageGroups: [] as string[],
-    registrationOpen: '', registrationClose: ''
-  });
-
-  const inFlightRegistrationsRef = useRef<Record<number, Promise<APIRegistration[]> | undefined>>({});
-  const [registrationsByTournament, setRegistrationsByTournament] = useState<Record<number, APIRegistration[]>>({});
-  const [registrationsLoading, setRegistrationsLoading] = useState<Record<number, boolean>>({});
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-  const [playerToRemove, setPlayerToRemove] = useState<Player | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [attendance, setAttendance] = useState<Record<string, Record<number, boolean>>>({});
-  const [unsavedDates, setUnsavedDates] = useState<Record<string, boolean>>({});
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-
-  // Mobile Tabs State
   const [activeTab, setActiveTab] = useState("attendance");
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [moreActiveSection, setMoreActiveSection] = useState<'announcements' | 'reports'>('announcements');
 
-  // --- Helpers ---
-
-  const normalizeTournament = (t: any) => ({
-    id: t.id, title: t.title, date: t.date, location: t.location,
-    description: t.description ?? "", matchType: t.match_type ?? "3v3",
-    ageGroups: t.age_groups ?? [], registrationOpen: t.registration_open ?? "",
-    registrationClose: t.registration_close ?? "", status: t.status ?? "upcoming"
-  });
-
-  const fetchRegistrationsForTournament = async (tournamentId: number) => {
-    if (registrationsByTournament[tournamentId]) return registrationsByTournament[tournamentId];
-    if (inFlightRegistrationsRef.current[tournamentId]) return inFlightRegistrationsRef.current[tournamentId];
-
-    const promise = (async () => {
-      setRegistrationsLoading(prev => ({ ...prev, [tournamentId]: true }));
-      try {
-        const regs = await apiGetRegistrations(tournamentId);
-        setRegistrationsByTournament(prev => ({ ...prev, [tournamentId]: regs }));
-        return regs;
-      } catch (err) {
-        setRegistrationsByTournament(prev => ({ ...prev, [tournamentId]: [] }));
-        return [];
-      } finally {
-        setRegistrationsLoading(prev => ({ ...prev, [tournamentId]: false }));
-        delete inFlightRegistrationsRef.current[tournamentId];
-      }
-    })();
-    inFlightRegistrationsRef.current[tournamentId] = promise;
-    return promise;
-  };
-
-  const escapeCSV = (value: any) => {
-    if (value === null || value === undefined) return "";
-    const s = String(value);
-    if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
-
-  const formatTimeRemaining = (expiresAt: number) => {
-    const now = Date.now();
-    const timeLeft = expiresAt - now;
-    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-    const minutes = Math.floor(timeLeft % (1000 * 60 * 60) / (1000 * 60));
-    return hours > 0 ? `${hours}h ${minutes}m remaining` : `${minutes}m remaining`;
-  };
-
-  // --- Initial Data Load ---
-  useEffect(() => {
-    getPlayers().then(setPlayers).catch(err => console.error(err));
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const tList = await apiGetTournaments();
-        if (!mounted) return;
-        const normalized = (tList || []).map(normalizeTournament);
-        setAllTournaments(normalized);
-        const today = new Date();
-        const past = normalized
-          .filter(t => new Date(t.date) < today)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setPastTournaments(past.slice(-2));
-      } catch (err) { console.error(err); }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (currentAnnouncement && currentAnnouncement.expiresAt) {
-        if (Date.now() > currentAnnouncement.expiresAt) {
-          setCurrentAnnouncement(null);
-          localStorage.removeItem('currentAnnouncement');
-          window.dispatchEvent(new Event('storage'));
-        }
-      }
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [currentAnnouncement]);
-
-  // --- Calendar Logic ---
-
-  const getCalendarDates = () => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date();
-    const formatLocalYmd = (d: Date) => {
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${d.getFullYear()}-${m}-${day}`;
-    };
-    const todayString = formatLocalYmd(today);
-    const dates = [];
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
-      const dateString = formatLocalYmd(date);
-      const isFuture = date > today;
-      const daysDiff = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      dates.push({
-        date: i, fullDate: dateString,
-        dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        isDisabled: isFuture && daysDiff > 3, isToday: dateString === todayString
-      });
-    }
-    return dates;
-  };
-  const calendarDates = getCalendarDates();
-
-  const handleAttendanceToggle = (playerId: number, checked: boolean) => {
-    const selectedDateObj = calendarDates.find((d) => d.fullDate === selectedDate);
-    if (selectedDateObj?.isDisabled) return;
-
-    if (checked) {
-      const player = players.find(p => p.id === playerId);
-      if (player) {
-        const limit = player.program === '4-Day' ? 4 : 2;
-        if (player.weeklyAttendance >= limit) {
-          const confirm = window.confirm(`⚠️ WARNING: Limit Reached\n${player.name} attended ${player.weeklyAttendance} classes this week.\nAdd extra class?`);
-          if (!confirm) return;
-        }
-      }
-    }
-
-    setAttendance((prev) => {
-      const prevForDate = prev[selectedDate] || {};
-      return { ...prev, [selectedDate]: { ...prevForDate, [playerId]: checked } };
-    });
-    setUnsavedDates((prev) => ({ ...prev, [selectedDate]: true }));
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    setAttendanceLoading(true);
-    getAttendance(selectedDate).then((map) => {
-      if (!mounted) return;
-      setAttendance((prev) => ({ ...prev, [selectedDate]: map }));
-      setUnsavedDates((prev) => ({ ...prev, [selectedDate]: false }));
-    }).catch(() => { if (mounted) setAttendance((prev) => ({ ...prev, [selectedDate]: {} })); })
-      .finally(() => { if (mounted) setAttendanceLoading(false); });
-    return () => { mounted = false; };
-  }, [selectedDate]);
-
-  const handleUpdateAttendance = async () => {
-    try {
-      await updateAttendance(selectedDate, attendance[selectedDate] || {});
-      const updated = await getPlayers();
-      setPlayers(updated);
-      setUnsavedDates((prev) => ({ ...prev, [selectedDate]: false }));
-      toast({ title: "Attendance Updated" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-  };
-
-  const handleDownloadReport = async () => {
-    try {
-      const blob = await downloadAttendanceReport();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `report_${new Date().toISOString().split('T')[0]}.xlsx`);
-      document.body.appendChild(link); link.click(); link.remove();
-      toast({ title: "Report Downloaded" });
-    } catch { toast({ title: "Download Failed", variant: "destructive" }); }
-  };
-
-  // --- Filtering & Navigation ---
-
-  const filteredPlayers = players.filter(player =>
-    player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (player.phone && player.phone.includes(searchQuery))
-  );
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth(prev => {
-      const newMonth = new Date(prev);
-      newMonth.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
-      return newMonth;
-    });
-  };
-
-  // --- Player Management ---
-
-  const handleAddPlayer = async () => {
-    if (!newPlayer.name) return;
-    try {
-      const saved = await addPlayer(newPlayer);
-      setPlayers([...players, saved]);
-      setNewPlayer({ name: "", program: "2-Day", batch: "Batch 1", phone: "" });
-      toast({ title: "Player added" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-  };
-
-  const handleRemovePlayer = (player: Player) => { setPlayerToRemove(player); setShowRemoveConfirm(true); };
-  const confirmRemovePlayer = async () => {
-    if (!playerToRemove) return;
-    try {
-      await removePlayer(playerToRemove.id);
-      setPlayers(prev => prev.filter(p => p.id !== playerToRemove.id));
-      toast({ title: "Player removed" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-    setShowRemoveConfirm(false); setPlayerToRemove(null);
-  };
-
-  const handleCreateTournament = async () => {
-    if (!tournamentForm.title || !tournamentForm.date) { toast({ title: "Missing info", variant: "destructive" }); return; }
-    try {
-      const created = await apiCreateTournament({ ...tournamentForm, description: tournamentForm.description || '' });
-      setAllTournaments(prev => [...prev, normalizeTournament(created)]);
-      setTournamentForm({ title: '', date: '', location: '', description: '', matchType: '3v3', ageGroups: [], registrationOpen: '', registrationClose: '' });
-      toast({ title: "Tournament created" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-  };
-
-  const handleCancelTournament = (id: number) => { setTournamentToCancel(id); setShowConfirmCancel(true); };
-  const confirmCancelTournament = async () => {
-    if (!tournamentToCancel) return;
-    try {
-      await apiDeleteTournament(tournamentToCancel);
-      setAllTournaments(prev => prev.map(t => t.id === tournamentToCancel ? { ...t, status: 'cancelled' } : t));
-      toast({ title: "Cancelled" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-    setShowConfirmCancel(false); setTournamentToCancel(null);
-  };
-
-  const handleExportRegistrations = async (id: number) => {
-    try {
-      const regs = await fetchRegistrationsForTournament(id);
-      if (!regs || !regs.length) { toast({ title: "No data", variant: "destructive" }); return; }
-      const headers = ['Team', 'Captain', 'Phone', 'Email', 'Players'];
-      const rows = regs.map(r => [escapeCSV(r.team_name), escapeCSV(r.captain_name), escapeCSV(r.phone), escapeCSV(r.email), escapeCSV(r.player_names?.join(' | '))].join(','));
-      const blob = new Blob(['\uFEFF' + [headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `regs_${id}.csv`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      toast({ title: "Exported" });
-    } catch { toast({ title: "Error", variant: "destructive" }); }
-  };
-
-  const handlePublishAnnouncement = () => {
-    if (!announcementText) return;
-    const now = Date.now();
-    let expiresAt;
-    if (announcementDuration === '24hours') expiresAt = now + 86400000;
-    else if (announcementDuration === '48hours') expiresAt = now + 172800000;
-    const ann: Announcement = { id: now, text: announcementText, duration: announcementDuration, createdAt: now, expiresAt };
-    localStorage.setItem('announcement', announcementText);
-    localStorage.setItem('currentAnnouncement', JSON.stringify(ann));
-    setCurrentAnnouncement(ann);
-    setAnnouncementText('');
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: "Published" });
-  };
-
-  const handleCancelAnnouncement = () => {
-    setCurrentAnnouncement(null);
-    localStorage.removeItem('currentAnnouncement');
-    localStorage.removeItem('announcement');
-    window.dispatchEvent(new Event('storage'));
-    toast({ title: "Canceled" });
-  };
+  // --- Hooks ---
+  const playerHook = usePlayers();
+  const attendanceHook = useAttendance(playerHook.players, playerHook.setPlayers);
+  const tournamentHook = useTournaments();
+  const registrationHook = useRegistrations();
+  const announcementHook = useAnnouncements();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -371,350 +49,263 @@ const CoachDashboard = () => {
     navigate('/', { replace: true });
   };
 
-  if (selectedPlayer) return <PlayerProfile player={selectedPlayer} onBack={() => setSelectedPlayer(null)} onPlayerUpdated={(updated) => {
-    setPlayers(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
-    setSelectedPlayer({ ...selectedPlayer, ...updated });
+  // --- Player Profile View ---
+  if (playerHook.selectedPlayer) return <PlayerProfile player={playerHook.selectedPlayer} onBack={() => playerHook.setSelectedPlayer(null)} onPlayerUpdated={(updated) => {
+    playerHook.setPlayers(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+    playerHook.setSelectedPlayer({ ...playerHook.selectedPlayer!, ...updated });
   }} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 text-white">
       {/* Header */}
       <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-900/80 backdrop-blur-lg border-b border-gray-800/50 sticky top-0 z-30">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-3 lg:py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden mr-2 text-gray-300 hover:text-white"><Menu size={20} /></Button>
-            <Link to="/"><img src="/images/Logo.png" alt="BaseLine" className="h-12 mr-4" /></Link>
-            <div><h1 className="text-xl font-bold">Coach Dashboard</h1></div>
+            <Link to="/"><img src="/images/Logo.png" alt="BaseLine" className="h-10 sm:h-12 mr-3" /></Link>
+            <h1 className="text-lg sm:text-xl font-bold">Coach Dashboard</h1>
           </div>
-          <Button variant="ghost" onClick={handleLogout} className="text-gray-300 hover:text-white"><LogOut size={18} className="mr-2" /> Logout</Button>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-300 hover:text-white"><LogOut size={18} className="sm:mr-2" /> <span className="hidden sm:inline">Logout</span></Button>
         </div>
       </motion.header>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 pb-24 lg:py-8 lg:pb-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Desktop Tabs List - Hidden on Mobile */}
-          <TabsList className="hidden lg:grid grid-cols-5 w-full mb-8 bg-gray-900/50 backdrop-blur-sm">
-            <TabsTrigger value="attendance" className="flex items-center"><Calendar className="mr-2 h-4 w-4" /> Attendance</TabsTrigger>
-            <TabsTrigger value="players" className="flex items-center"><Users className="mr-2 h-4 w-4" /> Players</TabsTrigger>
-            <TabsTrigger value="tournaments" className="flex items-center"><Award className="mr-2 h-4 w-4" /> Tournaments</TabsTrigger>
-            <TabsTrigger value="registrations" className="flex items-center"><FileSpreadsheet className="mr-2 h-4 w-4" /> Registrations</TabsTrigger>
-            <TabsTrigger value="announcements" className="flex items-center"><Bell className="mr-2 h-4 w-4" /> Announcements</TabsTrigger>
+          {/* Desktop TabsList */}
+          <TabsList className="hidden lg:grid grid-cols-6 w-full mb-8 bg-gray-900/50 backdrop-blur-sm">
+            <TabsTrigger value="attendance" className="flex items-center gap-2"><Calendar className="h-4 w-4" /> Attendance</TabsTrigger>
+            <TabsTrigger value="players" className="flex items-center gap-2"><Users className="h-4 w-4" /> Players</TabsTrigger>
+            <TabsTrigger value="tournaments" className="flex items-center gap-2"><Award className="h-4 w-4" /> Tournaments</TabsTrigger>
+            <TabsTrigger value="registrations" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Registrations</TabsTrigger>
+            <TabsTrigger value="announcements" className="flex items-center gap-2"><Bell className="h-4 w-4" /> Announcements</TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Reports</TabsTrigger>
           </TabsList>
 
-          {/* Mobile Tabs Sidebar (Replacing the old sidebar overlay) */}
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="bg-gray-900 border-r border-gray-800 text-white w-[280px]">
-              <div className="flex flex-col h-full">
-                <div className="mb-8">
-                  <img src="/images/Logo.png" alt="BaseLine" className="h-10 mb-6" />
-                  <h2 className="text-xl font-bold mb-1">Coach Dashboard</h2>
-                  <p className="text-gray-400 text-sm">Manage your team</p>
-                </div>
-                <div className="space-y-2 flex-1">
-                  {[
-                    { id: 'attendance', label: 'Attendance', icon: Calendar },
-                    { id: 'players', label: 'Players', icon: Users },
-                    { id: 'tournaments', label: 'Tournaments', icon: Award },
-                    { id: 'registrations', label: 'Registrations', icon: FileSpreadsheet },
-                    { id: 'announcements', label: 'Announcements', icon: Bell },
-                  ].map((tab) => (
-                    <Button
-                      key={tab.id}
-                      variant={activeTab === tab.id ? "default" : "ghost"}
-                      className={`w-full justify-start ${activeTab === tab.id ? 'bg-primary text-black' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        setSidebarOpen(false);
-                      }}
-                    >
-                      <tab.icon className="mr-3 h-5 w-5" />
-                      {tab.label}
-                    </Button>
-                  ))}
-                </div>
-                <div className="pt-6 border-t border-gray-800">
-                  <Button variant="ghost" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-900/10" onClick={handleLogout}>
-                    <LogOut className="mr-3 h-5 w-5" /> Logout
-                  </Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* ATTENDANCE TAB - Now with Clickable Names */}
-          <TabsContent value="attendance" className="space-y-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-900/80 rounded-xl border border-gray-700/50 overflow-hidden">
-              <div className="bg-primary/90 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">Attendance</h2>
-                <Button onClick={handleDownloadReport} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
-                  <Download className="h-4 w-4 mr-2" /> Report
+          {/* Tab Content */}
+          <AttendanceTab
+            {...attendanceHook}
+            filteredPlayers={playerHook.filteredPlayers}
+            searchQuery={playerHook.searchQuery}
+            setSearchQuery={playerHook.setSearchQuery}
+            selectedBatch={playerHook.selectedBatch}
+            setSelectedBatch={playerHook.setSelectedBatch}
+            setSelectedPlayer={playerHook.setSelectedPlayer}
+          />
+          <PlayersTab
+            players={playerHook.players}
+            newPlayer={playerHook.newPlayer}
+            setNewPlayer={playerHook.setNewPlayer}
+            handleAddPlayer={playerHook.handleAddPlayer}
+            handleRemovePlayer={playerHook.handleRemovePlayer}
+            setSelectedPlayer={playerHook.setSelectedPlayer}
+          />
+          <TournamentsTab
+            allTournaments={tournamentHook.allTournaments}
+            tournamentForm={tournamentHook.tournamentForm}
+            setTournamentForm={tournamentHook.setTournamentForm}
+            handleCreateTournament={tournamentHook.handleCreateTournament}
+            handleCancelTournament={tournamentHook.handleCancelTournament}
+          />
+          <RegistrationsTab
+            allTournaments={tournamentHook.allTournaments}
+            pastTournaments={tournamentHook.pastTournaments}
+            registrationsByTournament={registrationHook.registrationsByTournament}
+            registrationsLoading={registrationHook.registrationsLoading}
+            fetchRegistrationsForTournament={registrationHook.fetchRegistrationsForTournament}
+            handleExportRegistrations={registrationHook.handleExportRegistrations}
+          />
+          <AnnouncementsTab {...announcementHook} />
+          <TabsContent value="reports" className="space-y-8">
+            <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800 shadow-2xl">
+              <h2 className="text-xl font-bold mb-6 text-primary">Send Player Reports</h2>
+              <div className="flex gap-3 mb-4">
+                <Button variant="outline" size="sm" onClick={() => { if (playerHook.selectedPlayerIds.size === playerHook.filteredPlayers.length && playerHook.filteredPlayers.length > 0) playerHook.setSelectedPlayerIds(new Set()); else playerHook.setSelectedPlayerIds(new Set(playerHook.filteredPlayers.map(p => p.id))); }} className="bg-gray-800/50 border-gray-700 text-white hover:bg-gray-700">
+                  {playerHook.selectedPlayerIds.size === playerHook.filteredPlayers.length && playerHook.filteredPlayers.length > 0 ? 'Deselect All' : 'Select All'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { const notifiedIds = playerHook.filteredPlayers.filter(playerHook.isNotified).map(p => p.id); playerHook.setSelectedPlayerIds(new Set(notifiedIds)); }} className="bg-gray-800/50 border-gray-700 text-yellow-500 hover:bg-gray-700">Notified Only (!)</Button>
+                <Button size="sm" disabled={playerHook.selectedPlayerIds.size === 0} onClick={() => playerHook.setShowWhatsAppDialog(true)} className="bg-[#25D366] hover:bg-[#128C7E] text-white ml-auto">
+                  Send WhatsApp ({playerHook.selectedPlayerIds.size})
                 </Button>
               </div>
-              <div className="p-6">
-                {/* Calendar Controls */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}><ChevronLeft /></Button>
-                    <h3 className="text-lg font-semibold">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
-                    <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')}><ChevronRight /></Button>
-                  </div>
-                </div>
-                {/* Dates Row */}
-                <div className="flex gap-2 overflow-x-auto pb-4">
-                  {calendarDates.map((d) => (
-                    <Button key={d.fullDate} variant={selectedDate === d.fullDate ? "default" : "ghost"}
-                      onClick={() => !d.isDisabled && setSelectedDate(d.fullDate)} disabled={d.isDisabled}
-                      className={`flex-col h-auto py-2 min-w-[50px] ${d.isToday ? 'ring-1 ring-primary' : ''}`}>
-                      <span className="text-xs">{d.dayName}</span><span className="text-lg font-bold">{d.date}</span>
-                    </Button>
-                  ))}
-                </div>
-                {/* Player List */}
-                <div className="mt-4 space-y-3 max-h-[500px] overflow-y-auto">
-                  <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-800 border-gray-700 rounded-lg px-4 py-2 mb-4 text-white" />
-                  {filteredPlayers.map(p => {
-                    const weeklyLimit = p.program === '4-Day' ? 4 : 2;
-                    const isOver = p.weeklyAttendance >= weeklyLimit;
-                    return (
-                      <div key={p.id} className="bg-gray-800/40 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-700/50">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                            {p.avatar ? <img src={p.avatar} className="w-full h-full object-cover rounded-full" /> : <User size={20} />}
-                          </div>
-                          <div>
-                            {/* FIXED: Added onClick to open profile */}
-                            <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedPlayer(p)}>
-                              {p.name}
-                            </h3>
-                            <div className="flex gap-3 text-xs text-gray-400">
-                              <span className="text-primary">{p.program}</span>
-                              <span className="hidden sm:inline">• {p.batch || 'Batch 1'}</span>
-                              <span className={`hidden sm:inline ${isOver ? "text-yellow-500 font-bold" : ""}`}>• Week: {p.weeklyAttendance}</span>
-                              <span>• Classes Attended: {p.attendedClasses}</span>
-                            </div>
-                          </div>
+              <input type="text" placeholder="Search players..." value={playerHook.searchQuery} onChange={e => playerHook.setSearchQuery(e.target.value)} className="w-full bg-gray-800 border-gray-700 rounded-lg px-4 py-2 mt-2 mb-4 text-white text-sm" />
+              <p className="text-sm text-gray-500 mb-4">{playerHook.selectedPlayerIds.size} of {playerHook.filteredPlayers.length} selected</p>
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                <AnimatePresence>
+                  {playerHook.filteredPlayers.map(player => (
+                    <motion.div key={player.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { const newSet = new Set(playerHook.selectedPlayerIds); if (newSet.has(player.id)) newSet.delete(player.id); else newSet.add(player.id); playerHook.setSelectedPlayerIds(newSet); }} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${playerHook.selectedPlayerIds.has(player.id) ? 'bg-primary/10 border-primary/40' : 'bg-gray-800/30 border-gray-700 hover:border-gray-600'}`}>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${playerHook.selectedPlayerIds.has(player.id) ? 'bg-primary border-primary' : 'border-gray-600'}`}>
+                        {playerHook.selectedPlayerIds.has(player.id) && <Check size={12} className="text-black" />}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          {player.name}
+                          {playerHook.isNotified(player) && <span className="w-5 h-5 bg-yellow-500 text-black text-xs font-bold rounded-full flex items-center justify-center animate-pulse">!</span>}
+                        </h3>
+                        <div className="flex items-center gap-3 text-sm text-gray-400 mt-0.5">
+                          <span className="bg-primary/20 text-primary px-2 rounded-full text-xs">{player.program}</span>
+                          {player.batch && <span className="bg-blue-500/20 text-blue-300 px-2 rounded-full text-xs">{player.batch}</span>}
+                          {player.phone && <span className="text-xs">📞 {player.phone}</span>}
+                          <span className="text-xs">{player.attendedClasses} classes attended</span>
                         </div>
-                        <Switch checked={attendance[selectedDate]?.[p.id] || false} onCheckedChange={(c) => handleAttendanceToggle(p.id, c)} disabled={calendarDates.find(d => d.fullDate === selectedDate)?.isDisabled} />
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-6"><Button onClick={handleUpdateAttendance} className="w-full" disabled={attendanceLoading || !unsavedDates[selectedDate]}>Save Attendance</Button></div>
-              </div>
-            </motion.div>
-          </TabsContent>
-
-          {/* PLAYERS TAB */}
-          <TabsContent value="players" className="space-y-8">
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Add Player */}
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-gray-900/40 p-6 rounded-xl border border-gray-800">
-                <h2 className="text-xl font-bold mb-6 text-primary">Add New Player</h2>
-                <div className="space-y-4">
-                  <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Name" value={newPlayer.name} onChange={e => setNewPlayer({ ...newPlayer, name: e.target.value })} />
-                  <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Phone Number" value={newPlayer.phone} onChange={e => setNewPlayer({ ...newPlayer, phone: e.target.value })} />
-                  <select className="w-full bg-gray-800 border-gray-700 rounded p-3" value={newPlayer.batch} onChange={e => setNewPlayer({ ...newPlayer, batch: e.target.value })}>
-                    <option value="Batch 1">Batch 1</option>
-                    <option value="Batch 2">Batch 2</option>
-                  </select>
-                  <select className="w-full bg-gray-800 border-gray-700 rounded p-3" value={newPlayer.program} onChange={e => setNewPlayer({ ...newPlayer, program: e.target.value as Program })}>
-                    <option value="2-Day">2-Day Program</option><option value="4-Day">4-Day Program</option>
-                  </select>
-                  <Button onClick={handleAddPlayer} className="w-full bg-primary text-black hover:bg-primary/90"><Plus size={18} className="mr-2" /> Add Player</Button>
-                </div>
-              </motion.div>
-              {/* Player List */}
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-gray-900/40 p-6 rounded-xl border border-gray-800">
-                <h2 className="text-xl font-bold mb-6 text-primary">Player Management</h2>
-                <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                  <AnimatePresence>
-                    {players.map(player => (
-                      <motion.div key={player.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-gray-800/30 border border-gray-700 rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                        <div>
-                          <h3 className="font-semibold cursor-pointer hover:text-primary" onClick={() => setSelectedPlayer(player)}>{player.name}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-400">
-                            <span className="bg-primary/20 text-primary px-2 rounded-full text-xs">{player.program}</span>
-                            <span className="bg-blue-500/20 text-blue-300 px-2 rounded-full text-xs">{player.batch}</span>
-                            {player.phone && <span className="text-xs">📞 {player.phone}</span>}
-                            <span>ID: {player.id}</span>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleRemovePlayer(player)} className="text-red-400 hover:bg-red-500/10"><Trash2 size={16} /></Button>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            </div>
-          </TabsContent>
-
-          {/* TOURNAMENTS TAB */}
-          <TabsContent value="tournaments" className="space-y-8">
-            {allTournaments.filter(t => t.status === 'upcoming').length > 0 && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-900/40 p-6 rounded-xl border border-gray-800 shadow-2xl">
-              <h2 className="text-xl font-bold mb-6 text-primary">Active Tournaments</h2>
-              <div className="space-y-4">
-                {allTournaments.filter(t => t.status === 'upcoming').map(t => (
-                  <div key={t.id} className="bg-black/30 border border-gray-800 p-6 rounded-lg flex flex-col md:flex-row justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold">{t.title}</h3>
-                      <div className="flex gap-2 mt-2 mb-2 text-sm text-gray-400">
-                        <span className="bg-gray-800 px-2 rounded">{t.date}</span><span className="bg-gray-800 px-2 rounded">{t.matchType}</span>
-                        <span className="bg-green-900/30 text-green-200 px-2 rounded border border-green-800">Active</span>
-                      </div>
-                      <p className="text-gray-400">{t.description}</p>
-                    </div>
-                    <Button variant="destructive" onClick={() => handleCancelTournament(t.id)} className="mt-4 md:mt-0"><Trash2 size={16} className="mr-2" /> Cancel</Button>
-                  </div>
-                ))}
-              </div>
-            </motion.div>}
-
-            <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800">
-              <h2 className="text-xl font-bold mb-6 text-primary">Create New Tournament</h2>
-              <div className="grid lg:grid-cols-2 gap-6 mb-4">
-                <div className="space-y-4">
-                  <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Title" value={tournamentForm.title} onChange={e => setTournamentForm({ ...tournamentForm, title: e.target.value })} />
-                  <input type="date" className="w-full bg-gray-800 border-gray-700 rounded p-3" value={tournamentForm.date} onChange={e => setTournamentForm({ ...tournamentForm, date: e.target.value })} />
-                  <input className="w-full bg-gray-800 border-gray-700 rounded p-3" placeholder="Location" value={tournamentForm.location} onChange={e => setTournamentForm({ ...tournamentForm, location: e.target.value })} />
-                  <select className="w-full bg-gray-800 border-gray-700 rounded p-3" value={tournamentForm.matchType} onChange={e => setTournamentForm({ ...tournamentForm, matchType: e.target.value })}>
-                    <option value="3v3">3v3</option><option value="5v5">5v5</option><option value="1v1">1v1</option>
-                  </select>
-                </div>
-                <div className="space-y-4">
-                  <textarea className="w-full bg-gray-800 border-gray-700 rounded p-3 h-24" placeholder="Description" value={tournamentForm.description} onChange={e => setTournamentForm({ ...tournamentForm, description: e.target.value })} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs text-gray-400">Reg Open</label><input type="date" className="w-full bg-gray-800 border-gray-700 rounded p-3" value={tournamentForm.registrationOpen} onChange={e => setTournamentForm({ ...tournamentForm, registrationOpen: e.target.value })} /></div>
-                    <div><label className="text-xs text-gray-400">Reg Close</label><input type="date" className="w-full bg-gray-800 border-gray-700 rounded p-3" value={tournamentForm.registrationClose} onChange={e => setTournamentForm({ ...tournamentForm, registrationClose: e.target.value })} /></div>
-                  </div>
-                </div>
-              </div>
-              <div className="mb-6">
-                <label className="block mb-2 text-sm text-gray-400">Age Groups</label>
-                <div className="flex gap-4 flex-wrap">
-                  {['U15', 'U16', 'U17', 'U18', 'U19'].map(age => (
-                    <label key={age} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={tournamentForm.ageGroups.includes(age)} onChange={e => {
-                        if (e.target.checked) setTournamentForm({ ...tournamentForm, ageGroups: [...tournamentForm.ageGroups, age] });
-                        else setTournamentForm({ ...tournamentForm, ageGroups: tournamentForm.ageGroups.filter(a => a !== age) });
-                      }} /> {age}
-                    </label>
+                    </motion.div>
                   ))}
-                </div>
-              </div>
-              <Button onClick={handleCreateTournament} className="bg-primary text-black hover:bg-primary/90"><Award size={18} className="mr-2" /> Create</Button>
-            </div>
-          </TabsContent>
-
-          {/* REGISTRATIONS TAB */}
-          <TabsContent value="registrations" className="space-y-8">
-            <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800 shadow-2xl">
-              <h2 className="text-xl font-bold mb-6 text-primary">Tournament Registrations</h2>
-              {allTournaments.map(t => {
-                const regs = registrationsByTournament[t.id] || [];
-                return (
-                  <div key={t.id} className="mb-8 p-6 border border-gray-700 rounded bg-gray-800/20">
-                    <div className="flex justify-between items-center mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{t.title}</h3>
-                        <span className={`text-xs px-2 py-1 rounded border ${t.status === 'cancelled' ? 'bg-red-900/30 border-red-800 text-red-300' : 'bg-green-900/30 border-green-800 text-green-300'}`}>{t.status === 'cancelled' ? 'Cancelled' : 'Registration Open'}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => fetchRegistrationsForTournament(t.id)} disabled={registrationsLoading[t.id]}>Refresh</Button>
-                        <Button size="sm" className="bg-primary text-black hover:bg-primary/90" onClick={() => handleExportRegistrations(t.id)} disabled={registrationsLoading[t.id]}><Download size={16} className="mr-2" /> Export CSV</Button>
-                      </div>
-                    </div>
-                    {regs.length > 0 ? (
-                      <div className="overflow-x-auto rounded border border-gray-700">
-                        <table className="w-full text-left min-w-[600px]">
-                          <thead className="bg-gray-800 text-gray-400"><tr><th className="p-3">Team</th><th className="p-3">Captain</th><th className="p-3">Phone</th><th className="p-3">Players</th></tr></thead>
-                          <tbody>
-                            {regs.map((r, i) => <tr key={i} className="border-t border-gray-700 hover:bg-gray-800/50">
-                              <td className="p-3">{r.team_name}</td><td className="p-3">{r.captain_name}</td><td className="p-3">{r.phone}</td><td className="p-3 text-sm text-gray-400">{r.player_names?.join(', ')}</td>
-                            </tr>)}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : <div className="text-center text-gray-500 py-6">No registrations found.</div>}
-                  </div>
-                );
-              })}
-              {pastTournaments.length > 0 && <div className="mt-8"><h3 className="text-lg font-bold mb-4">Past Tournaments</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {pastTournaments.map(t => <div key={t.id} className="p-4 bg-gray-800/30 border border-gray-700 rounded"><h4>{t.title}</h4><p className="text-sm text-gray-400">{t.date}</p></div>)}
-                </div>
-              </div>}
-            </div>
-          </TabsContent>
-
-          {/* ANNOUNCEMENTS TAB */}
-          <TabsContent value="announcements" className="space-y-8">
-            <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800 shadow-2xl">
-              <h2 className="text-xl font-bold mb-6 text-primary">Manage Announcements</h2>
-              {currentAnnouncement && (
-                <div className="p-4 border border-green-800 bg-green-900/20 rounded mb-6 flex justify-between items-center">
-                  <div>
-                    <div className="text-green-400 flex items-center gap-2 mb-1"><CheckCircle size={16} /> Active Announcement</div>
-                    <div className="text-gray-300 text-lg">{currentAnnouncement.text}</div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Clock size={12} /> {currentAnnouncement.expiresAt ? formatTimeRemaining(currentAnnouncement.expiresAt) : 'Manual'}</div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={handleCancelAnnouncement} className="text-red-400 border-red-900 hover:bg-red-900/20">Cancel</Button>
-                </div>
-              )}
-              <div className="space-y-4">
-                <div>
-                  <label className="block mb-2 text-sm text-gray-400">Message</label>
-                  <textarea className="w-full bg-gray-800 border-gray-700 rounded p-3 h-32 text-white" placeholder="Enter announcement..." value={announcementText} onChange={e => setAnnouncementText(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm text-gray-400">Duration</label>
-                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                    {['24hours', '48hours', 'manual'].map(d => (
-                      <label key={d} className="flex items-center gap-2 cursor-pointer bg-gray-800/50 p-3 rounded-lg border border-gray-700 hover:border-primary transition-colors">
-                        <input type="radio" name="duration" checked={announcementDuration === d} onChange={() => setAnnouncementDuration(d as any)} className="text-primary focus:ring-primary" />
-                        <span className="text-sm">{d === 'manual' ? 'Until Canceled' : d.replace('hours', ' Hours')}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <Button onClick={handlePublishAnnouncement} className="bg-primary text-black hover:bg-primary/90"><Bell size={18} className="mr-2" /> Publish Announcement</Button>
+                </AnimatePresence>
               </div>
             </div>
           </TabsContent>
-
         </Tabs>
       </div>
 
+      {/* Dialogs */}
+      <WhatsAppDialog
+        show={playerHook.showWhatsAppDialog}
+        players={playerHook.players}
+        selectedPlayerIds={playerHook.selectedPlayerIds}
+        isNotified={playerHook.isNotified}
+        onClose={() => playerHook.setShowWhatsAppDialog(false)}
+      />
+      <RemovePlayerDialog
+        show={playerHook.showRemoveConfirm}
+        player={playerHook.playerToRemove}
+        onConfirm={playerHook.confirmRemovePlayer}
+        onCancel={() => playerHook.setShowRemoveConfirm(false)}
+      />
+      <CancelTournamentDialog
+        show={tournamentHook.showConfirmCancel}
+        onConfirm={tournamentHook.confirmCancelTournament}
+        onCancel={() => tournamentHook.setShowConfirmCancel(false)}
+      />
 
+      {/* MORE BOTTOM SHEET */}
+      <AnimatePresence>
+        {showMoreSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMoreSheet(false)}
+              className="lg:hidden fixed inset-0 bg-black/60 z-30"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="lg:hidden fixed bottom-[64px] left-0 right-0 z-40 bg-gray-900 border-t border-gray-800 rounded-t-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-10 h-1 bg-gray-700 rounded-full" />
+              </div>
+              <div className="flex gap-2 px-4 py-3 flex-shrink-0">
+                <button
+                  onClick={() => setMoreActiveSection('announcements')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    moreActiveSection === 'announcements' ? 'bg-primary text-black' : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  <Bell size={15} /> Announcements
+                </button>
+                <button
+                  onClick={() => setMoreActiveSection('reports')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    moreActiveSection === 'reports' ? 'bg-primary text-black' : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  <FileSpreadsheet size={15} /> Reports
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 px-4 pb-6">
+                {moreActiveSection === 'announcements' && (
+                  <div className="space-y-4 pt-2">
+                    {announcementHook.currentAnnouncement && (
+                      <div className="p-4 border border-green-800 bg-green-900/20 rounded-xl flex justify-between items-start gap-3">
+                        <div className="flex-1">
+                          <div className="text-green-400 flex items-center gap-2 mb-1 text-sm font-medium"><CheckCircle size={14} /> Active Announcement</div>
+                          <p className="text-gray-300 text-sm">{announcementHook.currentAnnouncement.text}</p>
+                          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Clock size={11} />
+                            {announcementHook.currentAnnouncement.expiresAt ? announcementHook.formatTimeRemaining(announcementHook.currentAnnouncement.expiresAt) : 'Manual'}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={announcementHook.handleCancelAnnouncement} className="bg-red-900/20 text-red-400 border-red-900 hover:bg-red-900/30 flex-shrink-0">Cancel</Button>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-2">Message</label>
+                      <textarea className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 h-28 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors" placeholder="Type your announcement..." value={announcementHook.announcementText} onChange={e => announcementHook.setAnnouncementText(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-2">Duration</label>
+                      <div className="flex flex-col gap-2">
+                        {[{ value: '24hours', label: '24 Hours' }, { value: '48hours', label: '48 Hours' }, { value: 'manual', label: 'Until Canceled' }].map(opt => (
+                          <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${announcementHook.announcementDuration === opt.value ? 'border-primary bg-primary/10' : 'border-gray-700 bg-gray-800/50'}`}>
+                            <input type="radio" name="duration" checked={announcementHook.announcementDuration === opt.value} onChange={() => announcementHook.setAnnouncementDuration(opt.value as any)} className="text-primary focus:ring-primary" />
+                            <span className="text-sm text-white">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <Button onClick={() => { announcementHook.handlePublishAnnouncement(); setShowMoreSheet(false); }} className="w-full h-12 bg-primary text-black font-semibold hover:bg-primary/90"><Bell size={16} className="mr-2" /> Publish Announcement</Button>
+                  </div>
+                )}
+                {moreActiveSection === 'reports' && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex gap-2">
+                      <button onClick={() => { if (playerHook.selectedPlayerIds.size === playerHook.filteredPlayers.length && playerHook.filteredPlayers.length > 0) playerHook.setSelectedPlayerIds(new Set()); else playerHook.setSelectedPlayerIds(new Set(playerHook.filteredPlayers.map(p => p.id))); }} className="flex-1 py-2 text-sm bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-all touch-manipulation">
+                        {playerHook.selectedPlayerIds.size === playerHook.filteredPlayers.length && playerHook.filteredPlayers.length > 0 ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <button onClick={() => { const notifiedIds = playerHook.filteredPlayers.filter(playerHook.isNotified).map(p => p.id); playerHook.setSelectedPlayerIds(new Set(notifiedIds)); }} className="flex-1 py-2 text-sm bg-yellow-900/30 text-yellow-500 border border-yellow-800 rounded-lg hover:bg-yellow-900/50 transition-all touch-manipulation">Notified Only (!)</button>
+                    </div>
+                    
+                    <input type="text" placeholder="Search players..." value={playerHook.searchQuery} onChange={e => playerHook.setSearchQuery(e.target.value)} className="w-full bg-gray-800 border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm" />
+                    
+                    <p className="text-xs text-gray-500">{playerHook.selectedPlayerIds.size} of {playerHook.filteredPlayers.length} selected</p>
+                    <div className="space-y-2">
+                      {playerHook.filteredPlayers.map(p => (
+                        <div key={p.id} onClick={() => { const newSet = new Set(playerHook.selectedPlayerIds); if (newSet.has(p.id)) newSet.delete(p.id); else newSet.add(p.id); playerHook.setSelectedPlayerIds(newSet); }} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all touch-manipulation active:scale-[0.98] ${playerHook.selectedPlayerIds.has(p.id) ? 'bg-primary/10 border-primary/40' : 'bg-gray-800/40 border-gray-700/40'}`}>
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${playerHook.selectedPlayerIds.has(p.id) ? 'bg-primary border-primary' : 'border-gray-600'}`}>
+                            {playerHook.selectedPlayerIds.has(p.id) && <Check size={12} className="text-black" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white flex items-center gap-1.5">{p.name} {playerHook.isNotified(p) && <span className="w-4 h-4 bg-yellow-500 text-black text-[9px] font-bold rounded-full inline-flex items-center justify-center animate-pulse">!</span>}</p>
+                            <p className="text-xs text-gray-500">{p.phone || 'No phone'} · {p.attendedClasses} classes</p>
+                          </div>
+                          <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full flex-shrink-0">{p.program}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button disabled={playerHook.selectedPlayerIds.size === 0} onClick={() => { setShowMoreSheet(false); playerHook.setShowWhatsAppDialog(true); }} className="w-full h-12 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold sticky bottom-0">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 mr-2" fill="currentColor"><path d="M12.01 2.01c-5.52 0-10 4.48-10 10 0 1.77.46 3.43 1.26 4.88L2 22l5.24-1.37c1.4.76 3 1.18 4.77 1.18 5.52 0 10-4.48 10-10a10 10 0 00-10-9.99z"/></svg>
+                      Send WhatsApp to {playerHook.selectedPlayerIds.size} Player{playerHook.selectedPlayerIds.size !== 1 ? 's' : ''}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {/* Remove Confirm Dialog */}
-      {showRemoveConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 w-full max-w-md text-center">
-            <div className="w-12 h-12 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 className="text-red-500" /></div>
-            <h3 className="text-xl font-bold mb-2">Remove Player?</h3>
-            <p className="text-gray-300 mb-6">Are you sure you want to remove <span className="text-primary">{playerToRemove?.name}</span>? This cannot be undone.</p>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setShowRemoveConfirm(false)}>Cancel</Button>
-              <Button variant="destructive" className="flex-1" onClick={confirmRemovePlayer}>Remove</Button>
+      {/* Bottom Navigation Bar — Mobile only */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-lg border-t border-gray-800 safe-area-pb">
+        <div className="flex items-center justify-around px-2 py-2">
+          {[{ id: 'attendance', label: 'Attend', icon: Calendar }, { id: 'players', label: 'Players', icon: Users }, { id: 'tournaments', label: 'Events', icon: Award }, { id: 'registrations', label: 'Regs', icon: FileSpreadsheet }].map(tab => (
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setShowMoreSheet(false); }} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] touch-manipulation ${activeTab === tab.id && !showMoreSheet ? 'text-primary bg-primary/10' : 'text-gray-500 hover:text-gray-300'}`}>
+              <tab.icon size={20} />
+              <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+            </button>
+          ))}
+          <button onClick={() => setShowMoreSheet(prev => !prev)} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] touch-manipulation ${showMoreSheet ? 'text-primary bg-primary/10' : 'text-gray-500 hover:text-gray-300'}`}>
+            <div className="flex items-center gap-[3px] h-5">
+              <div className={`w-[5px] h-[5px] rounded-full transition-colors ${showMoreSheet ? 'bg-primary' : 'bg-current'}`} />
+              <div className={`w-[5px] h-[5px] rounded-full transition-colors ${showMoreSheet ? 'bg-primary' : 'bg-current'}`} />
+              <div className={`w-[5px] h-[5px] rounded-full transition-colors ${showMoreSheet ? 'bg-primary' : 'bg-current'}`} />
             </div>
-          </div>
+            <span className="text-[10px] font-medium leading-none">More</span>
+          </button>
         </div>
-      )}
-
-      {/* Tournament Cancel Confirm Dialog */}
-      {showConfirmCancel && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 w-full max-w-md text-center">
-            <h3 className="text-xl font-bold mb-2">Cancel Tournament?</h3>
-            <p className="text-gray-300 mb-6">This will mark the tournament as cancelled. Are you sure?</p>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setShowConfirmCancel(false)}>No, Keep It</Button>
-              <Button variant="destructive" className="flex-1" onClick={confirmCancelTournament}>Yes</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </nav>
     </div>
   );
 };

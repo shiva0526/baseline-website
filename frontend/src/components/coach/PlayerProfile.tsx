@@ -26,6 +26,8 @@ interface Player {
   gender?: string | null;
   age?: number | null;
   avatar?: string | null;
+  joining_date?: string | null;
+  created_at?: string;
   performance_ratings?: Record<string, number>;
 }
 
@@ -67,6 +69,7 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
   const [editAge, setEditAge] = useState<string>(player.age != null ? String(player.age) : '');
   const [editBatch, setEditBatch] = useState(player.batch || 'Batch 1');
   const [editProgram, setEditProgram] = useState(player.program || '2-Day');
+  const [editJoiningDate, setEditJoiningDate] = useState(player.joining_date || '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -126,6 +129,7 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
         age: editAge ? parseInt(editAge) : undefined,
         batch: editBatch,
         program: editProgram,
+        joining_date: editJoiningDate || undefined,
       };
       const result = await updatePlayer(player.id, updatedData);
       toast({ title: "Success", description: "Profile updated!" });
@@ -444,6 +448,15 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
                       <option value="Batch 1">Batch 1</option>
                       <option value="Batch 2">Batch 2</option>
                     </select>
+                    <div className="flex items-center gap-1 bg-black/20 border border-black/30 rounded px-2 py-1">
+                      <span className="text-black/50 text-[10px] whitespace-nowrap">Join Date:</span>
+                      <input
+                        type="date"
+                        value={editJoiningDate}
+                        onChange={e => setEditJoiningDate(e.target.value)}
+                        className="bg-transparent text-black border-none p-0 text-xs focus:ring-0"
+                      />
+                    </div>
                     {isEditing && (
                       <Button
                         variant="ghost"
@@ -475,6 +488,12 @@ const PlayerProfile = ({ player, onBack, onPlayerUpdated }: PlayerProfileProps) 
                     <span className="px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
                       {player.batch || 'Batch 1'}
                     </span>
+                    {(player.joining_date || player.created_at) && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-black/10 text-black rounded text-xs border border-black/20">
+                        <Calendar className="h-3 w-3" />
+                        Joined: {new Date(player.joining_date || player.created_at!).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

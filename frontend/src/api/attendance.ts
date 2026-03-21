@@ -25,6 +25,9 @@ export const updateAttendance = async (date: string, attendance: AttendanceMap) 
 };
 
 export const downloadAttendanceReport = async (): Promise<Blob> => {
-  const res = await axiosClient.get("/attendance/report", { responseType: "blob" });
+  const res = await axiosClient.get("/attendance/report", {
+    responseType: "blob",
+    withCredentials: true
+  });
   return new Blob([res.data]);
 };

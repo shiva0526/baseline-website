@@ -27,6 +27,7 @@ class Player(Base):
     avatar: Mapped[str | None] = mapped_column(String(255), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    joining_date: Mapped[dated | None] = mapped_column(Date, nullable=True)
     
     # --- NEW FIELD: Stores stats like {"Dribbling": 4, "Passing": 3} ---
     performance_ratings: Mapped[dict | None] = mapped_column(JSON, nullable=True)

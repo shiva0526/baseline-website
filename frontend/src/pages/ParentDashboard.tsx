@@ -339,7 +339,7 @@ const ParentDashboard = () => {
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Payment History</h2>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700">
                   <FileSpreadsheet size={16} className="mr-2" /> View All
                 </Button>
               </div>
@@ -395,7 +395,7 @@ const ParentDashboard = () => {
                 </div>
 
                 <div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700">
                     View Full Calendar
                   </Button>
                 </div>
@@ -486,7 +486,7 @@ const ParentDashboard = () => {
                 </div>
 
                 <div className="mt-4">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700">
                     <FileSpreadsheet size={16} className="mr-2" /> View Full Results
                   </Button>
                 </div>

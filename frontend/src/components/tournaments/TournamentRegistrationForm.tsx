@@ -210,7 +210,7 @@ const TournamentRegistrationForm = ({
             <label className="block text-sm font-medium mb-1">Team Logo</label>
             <div className="border border-dashed border-gray-700 rounded-md p-4 text-center bg-gray-800/50">
               <p className="text-sm text-gray-400 mb-2">Upload your team logo</p>
-              <Button type="button" variant="outline" className="w-full">
+              <Button type="button" variant="outline" className="w-full bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700">
                 Choose File
               </Button>
               <p className="text-xs text-gray-500 mt-2">
@@ -316,7 +316,7 @@ const TournamentRegistrationForm = ({
           <Button
             type="button"
             variant="outline"
-            className="w-1/2"
+            className="w-1/2 bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700"
             onClick={onCancel}
             disabled={isSubmitting}
           >

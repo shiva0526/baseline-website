@@ -24,6 +24,7 @@ export const updatePlayer = async (id: number, data: {
   gender?: string;
   age?: number | null;
   avatar?: string;
+  joining_date?: string;
 }) => {
   const res = await axiosClient.put(`/players/${id}`, data);
   return res.data;

@@ -36,6 +36,7 @@ class PlayerBase(BaseModel):
     phone: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
+    joining_date: Optional[dated] = None
 
 class PlayerCreate(PlayerBase):
     pass
@@ -48,6 +49,7 @@ class PlayerUpdate(BaseModel):
     gender: Optional[str] = None
     age: Optional[int] = None
     avatar: Optional[str] = None
+    joining_date: Optional[dated] = None
 
 # --- NEW: Schema for saving performance ratings ---
 class PlayerPerformanceUpdate(BaseModel):
@@ -62,6 +64,8 @@ class PlayerOut(PlayerBase):
     avatar: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
+    joining_date: Optional[dated] = None
+    created_at: datetime
     
     # Calculated fields
     attendedClasses: int
