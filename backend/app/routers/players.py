@@ -20,20 +20,26 @@ router = APIRouter(prefix="/players", tags=["players"])
 
 def add_months(source_date: date, months: int) -> date:
     """Smartly adds months handling month-end edges"""
+    if not source_date:
+        source_date = date.today()
     month = source_date.month - 1 + months
     year = source_date.year + month // 12
     month = month % 12 + 1
     day = min(source_date.day, calendar.monthrange(year, month)[1])
     return date(year, month, day)
 
-def get_current_billing_cycle(join_date: date, report_date: date):
+def get_current_billing_cycle(join_date: date | None, report_date: date):
     """Calculates the start/end of the billing cycle"""
+    if not join_date:
+        join_date = report_date - timedelta(days=30)
     cycle_start = join_date
     cycle_end = add_months(cycle_start, 1)
     
-    while cycle_end <= report_date:
+    count = 0
+    while cycle_end <= report_date and count < 120:
         cycle_start = cycle_end
         cycle_end = add_months(cycle_start, 1)
+        count += 1
         
     return cycle_start, cycle_end
 
@@ -41,52 +47,82 @@ def get_current_billing_cycle(join_date: date, report_date: date):
 
 @router.get("/", response_model=List[schemas.PlayerOut])
 def list_players(db: Session = Depends(get_db)):
-    players = db.query(models.Player).all()
+    try:
+        players = db.query(models.Player).all()
+    except Exception as query_err:
+        print(f"Error querying players table: {query_err}")
+        import traceback
+        traceback.print_exc()
+        return []
+
     result = []
-    
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
 
     for p in players:
-        # Handle datetime conversion
-        join_date = p.joining_date or p.created_at
-        if isinstance(join_date, datetime):
-            join_date = join_date.date()
-            
-        cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
-        
-        attended_count_cycle = 0
-        weekly_attendance = 0
-        
-        for record in p.attendance:
-            if record.status:
-                rec_date = record.date
-                if isinstance(rec_date, datetime):
-                    rec_date = rec_date.date()
-                
-                # Monthly Count
-                if cycle_start <= rec_date < cycle_end:
-                    attended_count_cycle += 1
-                
-                # Weekly Count
-                if rec_date >= start_of_week:
-                    weekly_attendance += 1
+        try:
+            # Handle datetime conversion safely
+            raw_join = getattr(p, "joining_date", None) or getattr(p, "created_at", None) or today
+            if isinstance(raw_join, datetime):
+                join_date = raw_join.date()
+            elif isinstance(raw_join, date):
+                join_date = raw_join
+            else:
+                join_date = today
 
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "program": p.program,
-            "batch": p.batch,
-            "phone": p.phone, 
-            "avatar": p.avatar,
-            "gender": p.gender,
-            "age": p.age,
-            "joining_date": p.joining_date,
-            "created_at": p.created_at,
-            "attendedClasses": attended_count_cycle, 
-            "weeklyAttendance": weekly_attendance,
-            "performance_ratings": p.performance_ratings or {}
-        })
+            cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
+            
+            attended_count_cycle = 0
+            weekly_attendance = 0
+            
+            p_attendance = getattr(p, "attendance", None) or []
+            for record in p_attendance:
+                if getattr(record, "status", False):
+                    rec_date = getattr(record, "date", None)
+                    if isinstance(rec_date, datetime):
+                        rec_date = rec_date.date()
+                    
+                    if rec_date:
+                        # Monthly Count
+                        if cycle_start and cycle_end and cycle_start <= rec_date < cycle_end:
+                            attended_count_cycle += 1
+                        
+                        # Weekly Count
+                        if rec_date >= start_of_week:
+                            weekly_attendance += 1
+
+            result.append({
+                "id": p.id,
+                "name": p.name,
+                "program": getattr(p, "program", None),
+                "batch": getattr(p, "batch", None),
+                "phone": getattr(p, "phone", None), 
+                "avatar": getattr(p, "avatar", None),
+                "gender": getattr(p, "gender", None),
+                "age": getattr(p, "age", None),
+                "joining_date": getattr(p, "joining_date", None),
+                "created_at": getattr(p, "created_at", None),
+                "attendedClasses": attended_count_cycle, 
+                "weeklyAttendance": weekly_attendance,
+                "performance_ratings": getattr(p, "performance_ratings", None) or {}
+            })
+        except Exception as player_err:
+            print(f"Error processing player {getattr(p, 'id', 'unknown')}: {player_err}")
+            result.append({
+                "id": getattr(p, "id", 0),
+                "name": getattr(p, "name", "Unknown"),
+                "program": getattr(p, "program", None),
+                "batch": getattr(p, "batch", None),
+                "phone": getattr(p, "phone", None), 
+                "avatar": getattr(p, "avatar", None),
+                "gender": getattr(p, "gender", None),
+                "age": getattr(p, "age", None),
+                "joining_date": getattr(p, "joining_date", None),
+                "created_at": getattr(p, "created_at", None),
+                "attendedClasses": 0, 
+                "weeklyAttendance": 0,
+                "performance_ratings": getattr(p, "performance_ratings", None) or {}
+            })
     
     return result
 
@@ -125,25 +161,29 @@ def update_performance(player_id: int, payload: schemas.PlayerPerformanceUpdate,
     db.commit()
     db.refresh(p)
     
-    # Recalculate attendance stats for the response (reusing logic for accuracy)
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
-    join_date = p.joining_date or p.created_at
-    if isinstance(join_date, datetime):
-        join_date = join_date.date()
+    raw_join = getattr(p, "joining_date", None) or getattr(p, "created_at", None) or today
+    if isinstance(raw_join, datetime):
+        join_date = raw_join.date()
+    elif isinstance(raw_join, date):
+        join_date = raw_join
+    else:
+        join_date = today
+
     cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
     
     attended_count_cycle = 0
     weekly_attendance = 0
     
-    for record in p.attendance:
-        if record.status:
-            rec_date = record.date
+    for record in getattr(p, "attendance", []) or []:
+        if getattr(record, "status", False):
+            rec_date = getattr(record, "date", None)
             if isinstance(rec_date, datetime):
                 rec_date = rec_date.date()
-            if cycle_start <= rec_date < cycle_end:
+            if rec_date and cycle_start and cycle_end and (cycle_start <= rec_date < cycle_end):
                 attended_count_cycle += 1
-            if rec_date >= start_of_week:
+            if rec_date and rec_date >= start_of_week:
                 weekly_attendance += 1
 
     return {
@@ -159,7 +199,7 @@ def update_performance(player_id: int, payload: schemas.PlayerPerformanceUpdate,
         "created_at": p.created_at,
         "attendedClasses": attended_count_cycle, 
         "weeklyAttendance": weekly_attendance,
-        "performance_ratings": p.performance_ratings
+        "performance_ratings": p.performance_ratings or {}
     }
 
 # --- UPDATE PLAYER DETAILS ---
@@ -176,24 +216,28 @@ def update_player(player_id: int, payload: schemas.PlayerUpdate, db: Session = D
     db.commit()
     db.refresh(p)
     
-    # Recalculate attendance stats
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
-    join_date = p.joining_date or p.created_at
-    if isinstance(join_date, datetime):
-        join_date = join_date.date()
+    raw_join = getattr(p, "joining_date", None) or getattr(p, "created_at", None) or today
+    if isinstance(raw_join, datetime):
+        join_date = raw_join.date()
+    elif isinstance(raw_join, date):
+        join_date = raw_join
+    else:
+        join_date = today
+
     cycle_start, cycle_end = get_current_billing_cycle(join_date, today)
     
     attended_count_cycle = 0
     weekly_attendance = 0
-    for record in p.attendance:
-        if record.status:
-            rec_date = record.date
+    for record in getattr(p, "attendance", []) or []:
+        if getattr(record, "status", False):
+            rec_date = getattr(record, "date", None)
             if isinstance(rec_date, datetime):
                 rec_date = rec_date.date()
-            if cycle_start <= rec_date < cycle_end:
+            if rec_date and cycle_start and cycle_end and (cycle_start <= rec_date < cycle_end):
                 attended_count_cycle += 1
-            if rec_date >= start_of_week:
+            if rec_date and rec_date >= start_of_week:
                 weekly_attendance += 1
 
     return {

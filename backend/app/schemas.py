@@ -51,9 +51,9 @@ class PlayerUpdate(BaseModel):
     avatar: Optional[str] = None
     joining_date: Optional[dated] = None
 
-# --- NEW: Schema for saving performance ratings ---
+# --- Schema for saving performance ratings ---
 class PlayerPerformanceUpdate(BaseModel):
-    ratings: Dict[str, int]  # e.g. {"Dribbling": 5, "Passing": 4}
+    ratings: Dict[str, int]
 
 class PlayerOut(PlayerBase):
     id: int
@@ -65,14 +65,14 @@ class PlayerOut(PlayerBase):
     gender: Optional[str] = None
     age: Optional[int] = None
     joining_date: Optional[dated] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     # Calculated fields
-    attendedClasses: int
-    weeklyAttendance: int
+    attendedClasses: int = 0
+    weeklyAttendance: int = 0
     
-    # --- NEW: Performance Ratings field ---
-    performance_ratings: Optional[Dict[str, int]] = None
+    # --- Performance Ratings field ---
+    performance_ratings: Optional[Dict[str, Any]] = None
 
     model_config = {"from_attributes": True}
 
