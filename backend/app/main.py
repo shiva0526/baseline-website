@@ -3,16 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .database import Base, engine
-# REMOVE "reports" from this list
 from .routers import auth, players, attendance, tournaments, registrations, announcements
 
 from .auth_utils import hash_password
 import os
 
-# settings = get_settings()
-
-# Create tables on startup (use Alembic in real prod)
-Base.metadata.create_all(bind=engine)
+# Create tables on startup (safely handled if DB connection takes a moment to wake up)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Database initialization delayed or failed: {e}")
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -35,7 +35,6 @@ app.include_router(attendance.router)
 app.include_router(tournaments.router)
 app.include_router(registrations.router)
 app.include_router(announcements.router)
-# REMOVE the line: app.include_router(reports.router)
 
 @app.get("/")
 def root():

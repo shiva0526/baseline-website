@@ -1,11 +1,17 @@
-
 import { useCallback } from 'react';
 import Particles from 'react-particles';
 import { loadFull } from 'tsparticles';
 
 const ParticleBackground = () => {
   const particlesInit = useCallback(async (engine: any) => {
-    await loadFull(engine);
+    try {
+      if (engine && typeof engine.checkVersion !== 'function') {
+        engine.checkVersion = () => {};
+      }
+      await loadFull(engine);
+    } catch (err) {
+      console.warn("ParticleBackground initialization skipped:", err);
+    }
   }, []);
 
   return (
