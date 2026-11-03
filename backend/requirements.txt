@@ -13,7 +13,8 @@ python-jose[cryptography]
 python-multipart
 
 # Database Drivers
-psycopg2-binary      # PostgreSQL
+psycopg2-binary
+psycopg[binary]
 email-validator
 
 pandas
