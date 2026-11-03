@@ -1,96 +1,130 @@
-import { useCallback } from 'react';
-import Particles from 'react-particles';
-import { loadFull } from 'tsparticles';
+import React, { useEffect, useRef } from 'react';
 
-const ParticleBackground = () => {
-  const particlesInit = useCallback(async (engine: any) => {
-    try {
-      if (engine && typeof engine.checkVersion !== 'function') {
-        engine.checkVersion = () => {};
-      }
-      await loadFull(engine);
-    } catch (err) {
-      console.warn("ParticleBackground initialization skipped:", err);
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+}
+
+const ParticleBackground: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    const numParticles = Math.min(80, Math.floor((width * height) / 15000));
+    const particles: Particle[] = [];
+
+    for (let i = 0; i < numParticles; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
+        size: Math.random() * 2 + 1,
+      });
     }
+
+    let mouseX = -1000;
+    let mouseY = -1000;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    };
+
+    const handleMouseLeave = () => {
+      mouseX = -1000;
+      mouseY = -1000;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Update & draw particles
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce on boundaries
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        // Mouse repulse
+        const dxMouse = p.x - mouseX;
+        const dyMouse = p.y - mouseY;
+        const distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+        if (distMouse < 120 && distMouse > 0) {
+          const force = (120 - distMouse) / 120;
+          p.x += (dxMouse / distMouse) * force * 3;
+          p.y += (dyMouse / distMouse) * force * 3;
+        }
+
+        ctx.fillStyle = 'rgba(247, 208, 70, 0.4)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Connect nearby particles
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 130) {
+            const alpha = (1 - dist / 130) * 0.25;
+            ctx.strokeStyle = `rgba(247, 208, 70, ${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+      cancelAnimationFrame(animationFrameId);
+    };
   }, []);
 
   return (
-    <Particles
-      id="tsparticles"
-      init={particlesInit}
-      className="absolute inset-0 z-0"
-      options={{
-        background: {
-          color: {
-            value: "transparent",
-          },
-        },
-        fpsLimit: 120,
-        interactivity: {
-          events: {
-            onClick: {
-              enable: true,
-              mode: "push",
-            },
-            onHover: {
-              enable: true,
-              mode: "repulse",
-            },
-            resize: true,
-          },
-          modes: {
-            push: {
-              quantity: 4,
-            },
-            repulse: {
-              distance: 200,
-              duration: 0.4,
-            },
-          },
-        },
-        particles: {
-          color: {
-            value: "#F7D046",
-          },
-          links: {
-            color: "#F7D046",
-            distance: 150,
-            enable: true,
-            opacity: 0.2,
-            width: 1,
-          },
-          collisions: {
-            enable: true,
-          },
-          move: {
-            direction: "none",
-            enable: true,
-            outModes: {
-              default: "bounce",
-            },
-            random: false,
-            speed: 1,
-            straight: false,
-          },
-          number: {
-            density: {
-              enable: true,
-              area: 800,
-            },
-            value: 80,
-          },
-          opacity: {
-            value: 0.3,
-          },
-          shape: {
-            type: "circle",
-          },
-          size: {
-            value: { min: 1, max: 3 },
-          },
-        },
-        detectRetina: true,
-      }}
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 z-0 pointer-events-none"
+      style={{ width: '100%', height: '100%' }}
     />
   );
 };
